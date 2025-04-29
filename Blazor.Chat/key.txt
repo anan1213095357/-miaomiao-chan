@@ -1,0 +1,4 @@
+Ollama=您的Ollama密钥
+ChatGPT=您的ChatGPT密钥
+DouBao=您的DouBao密钥
+QianWen=您的QianWen密钥

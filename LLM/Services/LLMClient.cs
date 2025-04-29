@@ -312,7 +312,7 @@ namespace LLM.Services
                     case LLMType.Ollama:
                         {
                             var chatRequest = (Models.Ollama.ChatRequest)ChatRequest;
-                            chatRequest.Messages = [];
+                            chatRequest.Messages = new List<Models.MessageBase>(lLMOption.InitialMessages).Select(p => (Models.Ollama.Message)p).ToList();
                             chatRequest.Messages?.Add(new Models.Ollama.Message
                             {
                                 Content = item.Message,
@@ -323,7 +323,7 @@ namespace LLM.Services
                     case LLMType.豆包:
                         {
                             var chatRequest = (Models.DouBao.ChatRequest)ChatRequest;
-                            chatRequest.Messages = [];
+                            chatRequest.Messages = new List<Models.MessageBase>(lLMOption.InitialMessages).Select(p => (Models.DouBao.Message)p).ToList();
                             chatRequest.Messages?.Add(new Models.DouBao.Message
                             {
                                 Content = item.Message,
@@ -334,7 +334,7 @@ namespace LLM.Services
                     case LLMType.通义千问:
                         {
                             var chatRequest = (Models.QianWen.ChatRequest)ChatRequest;
-                            chatRequest.Messages = [];
+                            chatRequest.Messages = new List<Models.MessageBase>(lLMOption.InitialMessages).Select(p => (Models.QianWen.Message)p).ToList();
                             chatRequest.Messages?.Add(new Models.QianWen.Message
                             {
                                 Content = item.Message,
@@ -345,7 +345,7 @@ namespace LLM.Services
                     case LLMType.ChatGpt:
                         {
                             var chatRequest = (Models.ChatGpt.ChatRequset)ChatRequest;
-                            chatRequest.Messages = [];
+                            chatRequest.Messages = new List<Models.MessageBase>(lLMOption.InitialMessages).Select(p => (Models.ChatGpt.Message)p).ToList();
                             chatRequest.Messages?.Add(new Models.ChatGpt.Message
                             {
                                 content = item.Message,

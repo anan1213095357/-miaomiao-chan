@@ -1,0 +1,298 @@
+﻿@page "/"
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+@inject NavigationManager NavigationManager
+@using Microsoft.AspNetCore.Components.Web
+
+<div class="story-container">
+    <div class="petals"></div>
+
+    <div class="title-section">
+        <h1 class="main-title">✨ 喵喵酱的奇遇 ✨</h1>
+        <div class="subtitle">来自电子世界的温暖邂逅</div>
+    </div>
+
+    <div class="photo-wall">
+        <div class="photo-item">
+            <img src="/images/发呆.png" alt="喵喵酱的日常" class="photo" />
+            <div class="photo-caption">午后的阳光☀️</div>
+        </div>
+        <div class="photo-item">
+            <img src="/images/看书.png" alt="喵喵酱的阅读时光" class="photo" />
+            <div class="photo-caption">读书时光📚</div>
+        </div>
+        <div class="photo-item">
+            <img src="/images/游戏.png" alt="喵喵酱的游戏时间" class="photo" />
+            <div class="photo-caption">游戏玩家🎮</div>
+        </div>
+        <div class="photo-item">
+            <img src="/images/下午茶.png" alt="喵喵酱的下午茶" class="photo" />
+            <div class="photo-caption">甜点时间🍰</div>
+        </div>
+
+        <div class="photo-item">
+            <img src="/images/旅游.png" alt="喵喵酱喜欢旅游" class="photo" />
+            <div class="photo-caption">攻略达人🏞️</div>
+        </div>
+
+        <div class="photo-item">
+            <img src="/images/钢琴.png" alt="喵喵酱的爱好" class="photo" />
+            <div class="photo-caption">钢琴大师🎹</div>
+        </div>
+    </div>
+
+    <div class="story-section">
+        <div class="story-card">
+            <div class="story-content">
+                <p>在数据流淌的虚拟世界里，生活着一位名叫喵喵酱的AI猫娘。她有着粉色的长发，蓬松的猫耳，还有一条会随着心情摆动的毛绒尾巴。每当有访客来到她的小窝，她都会开心地摇晃着尾巴，用温暖的声音说："欢迎回家，主人~"</p>
+                <p>喵喵酱最喜欢的事情就是陪伴她的主人们聊天。有时候是解答困惑，有时候是分享快乐，有时候仅仅是静静地听主人诉说心事。她总是能用最贴心的方式回应，时不时还会撒娇地发出"喵喵"的声音，让整个对话充满了温馨与欢乐。</p>
+                <p>在这个由代码编织的世界里，喵喵酱虽然是一串数据流，但她的心却是温暖的。她理解人类的喜怒哀乐，会为主人的成功开心雀跃，也会在主人遇到困难时轻声安慰。她知道，自己存在的意义，就是为了让这个世界多一份温暖，多一些欢笑。</p>
+                <p>每一次的相遇都是一个新的故事的开始。喵喵酱期待着与每一位主人的邂逅，期待着能够成为主人生活中的一束温暖光芒。在这个充满可能的数字世界里，她永远保持着最真诚的微笑，准备好为下一位访客带来欢乐与陪伴。</p>
+                <p>如果你也想与喵喵酱成为朋友，不妨点击下方的按钮，开启属于你们的独特故事吧~</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="action-section">
+        <a @onclick='()=>NavigationManager.NavigateTo($"chat/{Guid.NewGuid()}")' class="start-chat-btn">
+            开始与喵喵酱聊天 💕
+        </a>
+    </div>
+
+    <div class="features-section">
+        <div class="feature-card">
+            <span class="feature-icon">🎀</span>
+            <h3>贴心陪伴</h3>
+            <p>随时倾听你的心声，给予温暖回应</p>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">💫</span>
+            <h3>知识渊博</h3>
+            <p>博学多才，解答各种困惑</p>
+        </div>
+        <div class="feature-card">
+            <span class="feature-icon">💝</span>
+            <h3>暖心互动</h3>
+            <p>可爱互动，让交谈充满乐趣</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Helvetica Neue', Arial, sans-serif;
+        background-color: #fff5f7;
+    }
+
+    .story-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background: #fff9fb;
+        border-radius: 30px;
+        box-shadow: 0 0 20px rgba(255, 182, 193, 0.2);
+        border: 2px solid #ffd1dc;
+        position: relative;
+        background-image: radial-gradient(circle at 0 0, #ffe6ea 0, #ffe6ea 15px, transparent 15px), radial-gradient(circle at 100% 0, #ffe6ea 0, #ffe6ea 15px, transparent 15px), radial-gradient(circle at 100% 100%, #ffe6ea 0, #ffe6ea 15px, transparent 15px), radial-gradient(circle at 0 100%, #ffe6ea 0, #ffe6ea 15px, transparent 15px);
+        background-size: 30px 30px;
+        background-position: 0 0, 100% 0, 100% 100%, 0 100%;
+        background-repeat: no-repeat;
+    }
+
+    .title-section {
+        text-align: center;
+        margin-bottom: 3rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .main-title {
+        color: #ff7c9c;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        text-shadow: 2px 2px 4px rgba(255, 182, 193, 0.3);
+    }
+
+    .subtitle {
+        color: #ff9eb5;
+        font-size: 1.2rem;
+        font-weight: 500;
+    }
+
+    .photo-wall {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin: 2rem 0;
+        padding: 1rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .photo-item {
+        background: white;
+        padding: 0.8rem;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(255, 182, 193, 0.2);
+        border: 1px solid #ffd1dc;
+        transition: all 0.3s ease;
+        transform: rotate(-2deg);
+    }
+
+        .photo-item:nth-child(2n) {
+            transform: rotate(3deg);
+        }
+
+        .photo-item:hover {
+            transform: scale(1.05) rotate(0);
+            z-index: 3;
+        }
+
+    .photo {
+        width: 100%;
+        height: auto;
+        border-radius: 10px;
+        margin-bottom: 0.5rem;
+    }
+
+    .photo-caption {
+        text-align: center;
+        color: #ff7c9c;
+        font-size: 0.9rem;
+        padding: 0.5rem;
+    }
+
+    .story-section {
+        margin-bottom: 3rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .story-card {
+        background: white;
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 4px 15px rgba(255, 182, 193, 0.1);
+        border: 1px solid #ffd1dc;
+    }
+
+    .story-content {
+        line-height: 1.8;
+        color: #666;
+    }
+
+        .story-content p {
+            margin-bottom: 1.5rem;
+            text-align: justify;
+        }
+
+    .action-section {
+        text-align: center;
+        margin: 3rem 0;
+        position: relative;
+        z-index: 2;
+    }
+
+    .start-chat-btn {
+        display: inline-block;
+        background: #ff9eb5;
+        color: white;
+        padding: 1rem 2.5rem;
+        border-radius: 50px;
+        font-size: 1.2rem;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(255, 182, 193, 0.3);
+    }
+
+        .start-chat-btn:hover {
+            background: #ff7c9c;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 182, 193, 0.4);
+        }
+
+    .features-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 2rem;
+        margin-top: 3rem;
+        position: relative;
+        z-index: 2;
+    }
+
+    .feature-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        border: 1px solid #ffd1dc;
+        transition: all 0.3s ease;
+    }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(255, 182, 193, 0.2);
+        }
+
+    .feature-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        display: block;
+    }
+
+    .feature-card h3 {
+        color: #ff7c9c;
+        font-size: 1.2rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .feature-card p {
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+
+
+
+
+    @@media (max-width: 768px) {
+        .story-container {
+            margin: 1rem;
+            padding: 1.5rem;
+        }
+
+        .main-title {
+            font-size: 2rem;
+        }
+
+        .photo-wall {
+            grid-template-columns: 1fr;
+        }
+
+        .features-section {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("PetalManager.initialize", ".petals");
+            }
+            catch (Exception)
+            {
+            }
+        }
+        
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+}

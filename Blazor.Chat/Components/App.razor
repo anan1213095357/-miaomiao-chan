@@ -1,0 +1,158 @@
+﻿<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="utf-8" />
+    <meta id="viewport-meta" name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
+    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["Blazor.Chat.styles.css"]" />
+    <ImportMap />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <HeadOutlet />
+    <style>
+        @@keyframes falling {
+            0%
+
+        {
+            transform: translateY(0) rotate(0deg);
+        }
+
+        100% {
+            transform: translateY(100vh) rotate(360deg);
+        }
+
+        }
+    </style>
+    <script src="vs/loader.js"></script>
+    <script src="js/babylon.js"></script>
+    <script src="js/babylon.glTF2FileLoader.min.js"></script>
+</head>
+
+<body>
+    <div class="petals"></div>
+    <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
+    <script src="_framework/blazor.web.js"></script>
+
+
+    <script>
+         window.PetalManager = (function () {
+            // Constants
+            const MAX_PETALS = 60;  // Maximum number of petals
+            const INITIAL_PETALS = 20;  // Initial number of petals
+
+            class PetalManager {
+                constructor(containerSelector) {
+                    this.activePetals = new Set();
+                    this.container = document.querySelector(containerSelector);
+                    this.start();
+                }
+
+                // Create a petal element
+                createPetal() {
+                    // If maximum petals are reached, do not create more
+                    if (this.activePetals.size >= MAX_PETALS) {
+                        return;
+                    }
+
+                    const petal = document.createElement('div');
+                    petal.className = 'petal';
+
+                    // Randomize petal styles
+                    const size = Math.random() * 20 + 10; // Size between 10px and 30px
+                    const startPosition = Math.random() * 100; // Position between 0vw and 100vw
+                    const duration = Math.random() * 3 + 2; // Duration between 2s and 5s
+                    const delay = Math.random() * 2; // Delay between 0s and 2s
+
+                    petal.style.cssText = `
+                        position: fixed;
+                        left: ${startPosition}vw;
+                        top: -10px;
+                        width: ${size}px;
+                        height: ${size}px;
+                        background: #ffd1dc;
+                        border-radius: 50% 20% 50% 20%;
+                        animation: falling ${duration}s linear ${delay}s;
+                        opacity: 0.6;
+                        pointer-events: none;
+                        z-index: 99999;
+                    `;
+
+                    // Add petal to the active set and container
+                    this.activePetals.add(petal);
+                    this.container.appendChild(petal);
+
+                    // Remove petal after animation ends
+                    petal.addEventListener('animationend', () => {
+                        petal.remove();
+                        this.activePetals.delete(petal);
+                    });
+                }
+
+                // Start creating petals
+                start() {
+                    // Initialize with initial petals
+                    for (let i = 0; i < INITIAL_PETALS; i++) {
+                        this.createPetal();
+                    }
+
+                    // Periodically create new petals to maintain the count
+                    this.intervalId = setInterval(() => {
+                        const petalCount = this.activePetals.size;
+                        const needCreate = MAX_PETALS - petalCount;
+                        for (let i = 0; i < needCreate; i++) {
+                            this.createPetal();
+                        }
+                    }, 1000); // Check every second
+                }
+
+                // Stop creating petals and clean up
+                stop() {
+                    clearInterval(this.intervalId);
+                    this.activePetals.forEach(petal => petal.remove());
+                    this.activePetals.clear();
+                }
+            }
+
+            let petalManagerInstance = null;
+
+            return {
+                initialize: function (containerSelector) {
+                    if (!petalManagerInstance) {
+                        petalManagerInstance = new PetalManager(containerSelector);
+                    }
+                },
+                dispose: function () {
+                    if (petalManagerInstance) {
+                        petalManagerInstance.stop();
+                        petalManagerInstance = null;
+                    }
+                }
+            };
+        })();
+
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            function adjustViewport() {
+                const viewport = document.getElementById('viewport-meta');
+                if (window.innerWidth <= 640) {
+                    viewport.setAttribute('content', 'width=device-width, initial-scale=0.65, maximum-scale=1');
+                } else {
+                    viewport.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1');
+                }
+            }
+
+            // // 初始调用
+            // adjustViewport();
+
+            // // 监听窗口大小变化
+            // window.addEventListener('resize', adjustViewport);
+        });
+    </script>
+
+
+</body>
+
+</html>

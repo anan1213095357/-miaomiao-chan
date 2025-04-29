@@ -1,0 +1,11 @@
+﻿
+
+.petals {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100VH;
+    height: 100VH;
+    pointer-events: none;
+    z-index: 99999;
+}

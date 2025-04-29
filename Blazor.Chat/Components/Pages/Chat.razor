@@ -1,0 +1,857 @@
+﻿@page "/chat/{ChatId}"
+@using Blazor.Chat.Models
+@using Blazor.Chat.Services
+@using Blazor.Chat.Utility
+@using LLM.Attributes
+@using LLM.Services
+@using System.Diagnostics
+@using System.Text.RegularExpressions
+@using System.Reflection
+@using LLM.Utilities
+@rendermode InteractiveServer
+@implements IDisposable
+@inject IJSRuntime JSRuntime
+@inject IChatService ChatService
+@inject ISettingsService SettingsService
+@inject HttpClient HttpClient
+@inject IJSRuntime JS
+@inject IFreeSql Fsql
+@inject IMiaoMiaoJiangAuthenticationStateProvider AuthProvider
+<div class="chat-container">
+    <div class="chat-bar">
+        <Blazor.Chat.Components.Widget.ToggleSwitch Label="流式" Value="isStream" ValueChanged='(e)=>{
+isStream = e;
+if (isStream)
+{
+             isFuncCall =false;
+}
+
+        }'>
+        </Blazor.Chat.Components.Widget.ToggleSwitch>
+        <Blazor.Chat.Components.Widget.ToggleSwitch Label="功能" Value="isFuncCall" ValueChanged='(e)=>{
+            isFuncCall = e;
+            if (isFuncCall)
+            {
+                isStream = false;
+            }
+        }'>
+
+        </Blazor.Chat.Components.Widget.ToggleSwitch>
+    </div>
+
+    <div class="messages" @ref="messagesDiv">
+        @foreach (var message in messages)
+        {
+            @if (message.IsBot)
+            {
+                <div class="message-group left">
+                    <div class="avatar-column">
+                        <img src="/images/miaomiao.jpg" alt="Bot Avatar" class="avatar-img" />
+                    </div>
+                    <div class="content-column">
+                        <span class="name">喵喵酱</span>
+                        <div class="message bot">
+                            @if (message.Content.Contains("<think>"))
+                            {
+                                // 提取思考过程内容
+                                var thoughtProcess = message.Content.Substring(message.Content.IndexOf("<think>") + 7);
+                                if (thoughtProcess.IndexOf("</think>") >= 7)
+                                {
+                                    thoughtProcess = thoughtProcess.Substring(0, thoughtProcess.IndexOf("</think>"));
+                                }
+
+                                // 在每次输出时逐步展示思考过程
+                                <p style="background-color: lightpink; padding: 10px; font-size: 12px; color: #333; border-radius: 5px; margin-bottom: 10px;">
+                                    <strong>思考过程：</strong>@thoughtProcess
+                                </p>
+
+                                if (message.Content.Contains("</think>"))
+                                {
+                                    // 过滤掉思考过程部分，只显示实际的回复
+                                    var replyContent = message.Content.Replace("<think>" + thoughtProcess + "</think>", "");
+                                    <p id="@message.Guid" class="message-content"></p>
+                                }
+                            }
+                            else
+                            {
+                                // 如果没有 <think> 标签，添加思考动效容器和消息内容容器
+                                <div id="thinking-@message.Guid" class="thinking-dots @(string.IsNullOrEmpty(message.Content) ? "visible" : "hidden")">
+                                    <span></span><span></span><span></span>
+                                </div>
+                                <p id="@message.Guid" class="message-content"></p>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="message-group right">
+                    <div class="avatar-column">
+                        <img src="/images/my.jpg" alt="User Avatar" class="avatar-img" />
+                    </div>
+                    <div class="content-column">
+                        <span class="name name-right">我</span>
+                        <div class="message user" style="position:relative">
+                            @if (editingMessageId == message.Guid)
+                            {
+                                <textarea class="edit-textarea" @bind="editMessage" placeholder="编辑消息..." @onkeyup="AutoResizeTextarea" @ref="editTextArea" />
+                                <button @onclick='()=>SendEditedMessage(message)' class="edit-send-btn">
+                                    <svg t="1745895267952" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="6625" width="25" height="25"><path d="M925.6 559.2L152 145.6c-11.2-5.6-24.8 3.2-23.2 15.2l60 714.4c0.8 11.2 12 17.6 22.4 13.6L460.8 784l136.8 155.2c8.8 9.6 24 5.6 27.2-6.4l65.6-245.6 235.2-99.2c11.2-5.6 12-22.4 0-28.8z m-328 305.6l-72-128-368-568 488 504-48 192z" p-id="6626" fill="#fc9aca"></path></svg>
+                                </button>
+                            }
+                            else
+                            {
+                                <p>
+                                    @message.Content
+
+                                </p>
+                                <button @onclick='()=>StartEdit(message)' class="edit-btn">
+                                    <svg t="1745894588346" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="5419" width="25" height="25"><path d="M603.776 159.168l135.744 135.808a64 64 0 0 1 0 90.496l-90.496 90.496-226.304-226.24L513.28 159.168a64 64 0 0 1 90.56 0zM377.472 295.04l226.304 226.24-290.432 290.432a64 64 0 0 1-36.672 18.176l-198.656 26.88a32 32 0 0 1-36.032-35.968l26.88-198.72a64 64 0 0 1 18.176-36.608l290.432-290.432zM480 768h320a32 32 0 1 1 0 64h-320a32 32 0 1 1 0-64z m128-128h192a32 32 0 1 1 0 64h-192a32 32 0 1 1 0-64z" fill="#fc9aca" p-id="5420"></path></svg>
+                                </button>
+                            }
+
+                        </div>
+                    </div>
+
+                </div>
+            }
+        }
+    </div>
+
+    <!-- 新设计的消息输入区域 -->
+    <form @onsubmit="SendMessage" class="kawaii-input-area">
+        <div class="input-container">
+            <textarea @bind="newMessage"
+                      @bind:event="oninput"
+                      @onkeyup="AutoResizeInputTextarea"
+                      @ref="inputTextArea"
+                      placeholder="喵~ 有什么想和我聊的呢？"
+                      class="kawaii-textarea"></textarea>
+            <button type="submit" class="kawaii-send-btn">
+                <svg viewBox="0 0 24 24" width="24" height="24" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" class="send-icon">
+                    <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z"></path>
+                </svg>
+            </button>
+            <div class="paw-print-1"></div>
+            <div class="paw-print-2"></div>
+        </div>
+    </form>
+</div>
+
+<style>
+    /* 思考动效样式 */
+    .thinking-dots {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 10px 0;
+        height: 24px;
+    }
+
+        .thinking-dots.hidden {
+            display: none;
+        }
+
+        .thinking-dots.visible {
+            display: flex;
+        }
+
+        .thinking-dots span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin: 0 4px;
+            background-color: #ff9dd3;
+            animation: thinking 1.4s infinite ease-in-out both;
+        }
+
+            .thinking-dots span:nth-child(1) {
+                animation-delay: -0.32s;
+            }
+
+            .thinking-dots span:nth-child(2) {
+                animation-delay: -0.16s;
+            }
+
+    @@keyframes thinking {
+        0%, 80%, 100%
+
+    {
+        transform: scale(0);
+    }
+
+    40% {
+        transform: scale(1);
+    }
+
+    }
+
+    /* 编辑按钮样式 - 现代化设计 */
+    .edit-btn {
+        position: absolute;
+        right: 0px;
+        bottom: -30px;
+        background-color: #ffd6e3;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(255, 150, 200, 0.3);
+    }
+
+        .edit-btn:hover {
+            background-color: #ffbad3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 150, 200, 0.4);
+        }
+
+        .edit-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(255, 150, 200, 0.3);
+        }
+
+        .edit-btn svg {
+            transition: transform 0.2s ease;
+        }
+
+        .edit-btn:hover svg {
+            transform: scale(1.1);
+        }
+
+    /* 发送编辑按钮样式 - 现代化设计 */
+    .edit-send-btn {
+        position: absolute;
+        right: 0px;
+        bottom: -30px;
+        background-color: #ffd6e3;
+        border: none;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(255, 150, 200, 0.3);
+    }
+
+        .edit-send-btn:hover {
+            background-color: #ffbad3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 150, 200, 0.4);
+        }
+
+        .edit-send-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(255, 150, 200, 0.3);
+        }
+
+        .edit-send-btn svg {
+            transition: transform 0.2s ease;
+        }
+
+        .edit-send-btn:hover svg {
+            transform: scale(1.1);
+        }
+
+    /* 编辑框样式 - 更大更现代的设计 */
+    .edit-textarea {
+        width: 100%;
+        min-height: 120px;
+        padding: 12px 15px;
+        border: 2px solid #ff9eb5;
+        border-radius: 12px;
+        background-color: #fff;
+        color: #333;
+        font-family: inherit;
+        font-size: 1rem;
+        line-height: 1.5;
+        outline: none;
+        resize: vertical;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(255, 150, 200, 0.15);
+    }
+
+        .edit-textarea:focus {
+            border-color: #ff69b4;
+            box-shadow: 0 4px 15px rgba(255, 105, 180, 0.3);
+        }
+
+        .edit-textarea::placeholder {
+            color: #ffb6c1;
+            opacity: 0.7;
+        }
+
+    /* 新设计的卡哇伊猫娘主题输入区域 */
+    .kawaii-input-area {
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 15px 20px;
+        background: linear-gradient(to right, #fff0f5, #ffebff);
+        box-shadow: 0 -5px 20px rgba(255, 182, 193, 0.2);
+        z-index: 10;
+    }
+
+    .input-container {
+        position: relative;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .kawaii-textarea {
+        width: 100%;
+        min-height: 60px;
+        max-height: 150px;
+        padding: 18px 60px 18px 25px;
+        background-color: #fff;
+        color: #4a4a4a;
+        font-size: 16px;
+        line-height: 1.5;
+        border: 2px solid #ff9eb5;
+        border-radius: 24px;
+        outline: none;
+        resize: none;
+        overflow-y: auto;
+        transition: all 0.3s ease;
+    }
+
+        .kawaii-textarea:focus {
+            border-color: #ff69b4;
+            box-shadow: 0 8px 20px rgba(255, 105, 180, 0.25);
+        }
+
+        .kawaii-textarea::placeholder {
+            color: #ffb6c1;
+            opacity: 0.8;
+        }
+
+    .kawaii-send-btn {
+        position: absolute;
+        right: 15px;
+        bottom: 40px;
+        transform: translateY(50%);
+        width: 44px;
+        height: 44px;
+        background: linear-gradient(135deg, #ffd7ea, #ff3e9d);
+        border: none;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 3px 10px rgba(255, 62, 157, 0.3);
+    }
+
+        .kawaii-send-btn:hover {
+            transform: translateY(50%) scale(1.05);
+            background: linear-gradient(135deg, #ff5b7b, #ff2e8d);
+            box-shadow: 0 5px 15px rgba(255, 62, 157, 0.4);
+        }
+
+        .kawaii-send-btn:active {
+            transform: translateY(50%) scale(0.95);
+            box-shadow: 0 2px 5px rgba(255, 62, 157, 0.3);
+        }
+
+    .send-icon {
+        transform: rotate(45deg);
+        transition: transform 0.3s ease;
+    }
+
+    .kawaii-send-btn:hover .send-icon {
+        transform: rotate(45deg) scale(1.1);
+    }
+
+    /* 可爱猫爪装饰 */
+    .paw-print-1, .paw-print-2 {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        background-color: rgba(255, 183, 197, 0.2);
+        border-radius: 50%;
+    }
+
+        .paw-print-1:before, .paw-print-1:after,
+        .paw-print-2:before, .paw-print-2:after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: rgba(255, 183, 197, 0.2);
+            border-radius: 50%;
+        }
+
+    .paw-print-1 {
+        bottom: 8px;
+        left: 15px;
+    }
+
+        .paw-print-1:before {
+            top: -6px;
+            left: -4px;
+        }
+
+        .paw-print-1:after {
+            top: -6px;
+            right: -4px;
+        }
+
+    .paw-print-2 {
+        bottom: 8px;
+        right: 70px;
+    }
+
+        .paw-print-2:before {
+            top: -6px;
+            left: -4px;
+        }
+
+        .paw-print-2:after {
+            top: -6px;
+            right: -4px;
+        }
+</style>
+
+
+@code {
+    private ElementReference messagesDiv;
+    private ElementReference editTextArea;
+    private ElementReference inputTextArea; // 新增：输入文本区域的引用
+    private List<ChatMessage> messages = new List<ChatMessage>();
+    private LLMClient lLMClient = default!;
+    private string newMessage = "";
+    private Models.LLMSettings settings = default!;
+    private bool isFuncCall = false;
+    private bool isStream = true;
+    private Person _person = new();
+    // 编辑消息相关属性
+    private string? editingMessageId = null;
+    private string editMessage = "";
+
+    public void Dispose()
+    {
+        // 释放 LLMClient 资源
+        if (lLMClient != null)
+        {
+            lLMClient.StreamDelegate = null;
+            lLMClient.StreamCompletedDelegate = null;
+            lLMClient.Dispose();
+
+            // 强制进行垃圾回收
+            GC.Collect();
+
+            // 等待所有挂起的终结器完成
+            GC.WaitForPendingFinalizers();
+
+            // 再次进行垃圾回收，以清理那些在终结器中被标记为可回收的对象
+            GC.Collect();
+
+        }
+    }
+    [Parameter]
+    public string? ChatId { get; set; }
+
+
+    protected override void OnInitialized()
+    {
+
+        base.OnInitialized();
+    }
+
+    private async Task ScrollToBottom()
+    {
+        await JSRuntime.InvokeVoidAsync("scrollToBottom", messagesDiv);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+
+        await InitChatAsync();
+
+        await base.OnParametersSetAsync();
+    }
+
+    // 开始编辑消息
+    private async Task StartEdit(ChatMessage message)
+    {
+        if (!message.IsBot)
+        {
+            editingMessageId = message.Guid;
+            editMessage = message.Content;
+            StateHasChanged();
+            // 等待组件渲染后自动调整文本区域的高度
+            await Task.Delay(50);
+            await JSRuntime.InvokeVoidAsync("autoResizeTextarea", editTextArea);
+        }
+    }
+
+    // 自动调整文本区域高度的方法
+    private async Task AutoResizeTextarea()
+    {
+        await JSRuntime.InvokeVoidAsync("autoResizeTextarea", editTextArea);
+    }
+
+    // 自动调整输入框高度的方法
+    private async Task AutoResizeInputTextarea()
+    {
+        await JSRuntime.InvokeVoidAsync("autoResizeTextarea", inputTextArea);
+    }
+
+    // 保存编辑后的消息
+    private async Task SendEditedMessage(ChatMessage message)
+    {
+        if (string.IsNullOrWhiteSpace(editMessage))
+        {
+            return;
+        }
+
+        var index = messages.IndexOf(message);
+        messages.RemoveAll(p => p.Index >= index);
+
+        lLMClient.AddConversationMessage(messages.Select(p => new LLMClient.ConversationMessage
+            {
+                IsUser = !p.IsBot,
+                Message = p.Content,
+            }).ToList());
+
+
+        // 重置编辑状态
+        editingMessageId = null;
+        newMessage = editMessage;
+        editMessage = "";
+
+
+        StateHasChanged();
+
+        await SendMessage();
+
+
+
+    }
+
+    private async Task InitChatAsync()
+    {
+
+
+
+
+        var userClaim = (await AuthProvider.GetAuthenticationStateAsync()).User.Claims;
+
+
+        _person.Name = userClaim.FirstOrDefault(p => p.Type == "Name")?.Value ?? "";
+
+        _person.Account = userClaim.FirstOrDefault(p => p.Type == "Account")?.Value ?? "";
+        //_user.Roles = userClaim.FirstOrDefault(p => p.Type == "Role")?.Value + "";
+        _person.Password = userClaim.FirstOrDefault(p => p.Type == "Password")?.Value ?? "";
+
+        if (long.TryParse(userClaim.FirstOrDefault(p => p.Type == "ID")?.Value ?? "", out long ID))
+        {
+            _person.ID = ID;
+        }
+
+        messages.Clear();
+        ChatHistoryItem? chatHistoryItem = null;
+        if (!string.IsNullOrEmpty(ChatId))
+        {
+            chatHistoryItem = await ChatService.GetChatById(_person.ID, ChatId);
+        }
+        else
+        {
+            ChatId = Guid.NewGuid().ToString();
+        }
+        List<string> codes = [];
+        if (Directory.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot", "csharpCode", _person.ID.ToString())))
+        {
+            foreach (var csharpFile in Directory.GetFiles(Path.Combine(AppContext.BaseDirectory, "wwwroot", "csharpCode", _person.ID.ToString())))
+            {
+                var scripts = await Fsql.Select<Scripts>().Where(p => p.PersonID == _person.ID).FirstAsync();
+                if (scripts != null && scripts.ScriptAuditStatus == ScriptAuditStatus.已通过)
+                {
+                    codes.Add(await File.ReadAllTextAsync(csharpFile));
+                }
+            }
+        }
+
+
+        settings = await SettingsService.LoadSettingsAsync();
+        var builder = new LLMBuilder()
+            .AddTool(codes)
+            .SetBaseUrl(Models.LLMSettings.GetProxy(settings))
+            .SetLLMType(Models.LLMSettings.GetType(settings))
+            .SetBearer(Models.LLMSettings.GetKey(settings))
+            .SetHttpClient(HttpClient)
+            .AddSystemMessage(settings.SystemPrompt)
+            .SetModel(settings.Model);
+
+        if (chatHistoryItem?.Messages != null)
+        {
+            builder.AddChatHistory(chatHistoryItem.Messages.Select(p => new LLM.Models.ChatMessage
+                {
+                    Content = p.Content,
+                    Index = p.Index,
+                    IsBot = p.IsBot
+                }).ToList());
+
+            messages.AddRange(chatHistoryItem.Messages);
+
+
+        }
+        else
+        {
+            messages.Add(new ChatMessage { Content = "喵~~！我是你的小猫娘，很高兴为主人服务。", IsBot = true, Guid = ChatId });
+        }
+
+        lLMClient = builder.Build();
+        lLMClient.AddConversationMessage(messages.Select(p => new LLMClient.ConversationMessage
+            {
+                IsUser = !p.IsBot,
+                Message = p.Content,
+            }).ToList());
+
+
+
+
+    }
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+
+
+        if (firstRender)
+        {
+
+
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("PetalManager.initialize", ".petals");
+
+                await InitChatAsync();
+                // 初始化所有现有消息的内容
+                foreach (var message in messages.Where(m => m.IsBot))
+                {
+                    string content = message.Content;
+
+                    // 处理思考过程
+                    if (content.Contains("<think>"))
+                    {
+                        var startIndex = content.IndexOf("<think>");
+                        var endIndex = content.IndexOf("</think>");
+                        if (endIndex > startIndex)
+                        {
+                            content = content.Remove(startIndex, (endIndex + 8) - startIndex);
+                        }
+                    }
+
+                    await JSRuntime.InvokeVoidAsync("setMessageText", message.Guid, content);
+                    // 确保隐藏思考动效（因为历史消息已经有内容）
+                    await JSRuntime.InvokeVoidAsync("hideThinking", message.Guid);
+                }
+
+                // 初始化输入文本区域自动高度调整
+                await JSRuntime.InvokeVoidAsync("autoResizeTextarea", inputTextArea);
+            }
+            catch (Exception)
+            {
+
+            }
+
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+
+
+    private async Task SendMessage()
+    {
+        var person = await Fsql.Select<Person>().Where(p => p.ID == _person.ID).FirstAsync();
+
+        if (person.Balance <= 0)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newMessage))
+            return;
+
+        var newMessageTemp = newMessage;
+        messages.Add(new ChatMessage { Content = newMessage, IsBot = false, Index = messages.Max(p => p.Index) + 1, Guid = Guid.NewGuid().ToString() });
+        newMessage = "";
+        await Task.Delay(10);
+        StateHasChanged();
+        await ScrollToBottom();
+
+        // 重置输入框高度
+        await JSRuntime.InvokeVoidAsync("resetTextareaHeight", inputTextArea);
+
+        var index = messages.Max(p => p.Index) + 1;
+        if (isStream)
+        {
+            // 创建一个新的消息，并设置唯一ID
+            var messageId = Guid.NewGuid().ToString();
+            var streamMessage = new ChatMessage { Content = "", IsBot = true, Index = index, Guid = messageId };
+            messages.Add(streamMessage);
+
+            // 先渲染一次，使DOM中有这个元素
+            StateHasChanged();
+            await Task.Delay(10);
+
+            lLMClient.StreamDelegate = async (str) =>
+            {
+                // 更新内存中的消息内容（用于最终保存历史记录）
+                streamMessage.Content += str;
+
+                // 当第一次收到内容时，隐藏思考动效
+                if (streamMessage.Content.Length == str.Length)
+                {
+                    await JSRuntime.InvokeVoidAsync("hideThinking", messageId);
+                }
+
+                // 使用JS函数直接更新DOM
+                await JSRuntime.InvokeVoidAsync("addMessageText", messageId, str);
+                await ScrollToBottom();
+            };
+
+            lLMClient.StreamCompletedDelegate = async (consume) =>
+            {
+                try
+                {
+                    await Fsql.Update<Person>().Where(p => p.ID == _person.ID).Set(p => p.Balance - consume).ExecuteAffrowsAsync();
+                    await ChatService.SaveChatHistory(_person.ID, messages, ChatId);
+                    await JS.InvokeVoidAsync("updateChatHistory");
+                }
+                catch (Exception)
+                {
+                    // 处理异常
+                }
+            };
+
+            var res = await lLMClient.SendMessageAsync(newMessageTemp, isStream, isFuncCall);
+        }
+        else
+        {
+            // 非流式模式代码保持不变
+            var ret = await lLMClient.SendMessageAsync(newMessageTemp, isStream, isFuncCall);
+            await Fsql.Update<Person>().Where(p => p.ID == _person.ID).Set(p => p.Balance - ret.Value.Item2).ExecuteAffrowsAsync();
+            var res = ret.Value.Item1;
+            var messageId = Guid.NewGuid().ToString();
+
+            if (isFuncCall)
+            {
+                if (lLMClient.IsFunctionCall(res!))
+                {
+                    var msg = lLMClient.ExtractMessages(res!);
+                    var funcRet = await lLMClient.ExecuteFunctionsAsync(res);
+
+                    if (funcRet == null)
+                    {
+                        // 处理函数返回为空的情况
+                    }
+                    var botMessage = new ChatMessage { Content = $"消息：{msg}，执行结果：{funcRet}", IsBot = true, Index = index, Guid = messageId };
+                    messages.Add(botMessage);
+                    StateHasChanged();
+                    await Task.Delay(10);
+                    await JSRuntime.InvokeVoidAsync("hideThinking", messageId);
+                    await JSRuntime.InvokeVoidAsync("setMessageText", messageId, botMessage.Content);
+                    await ScrollToBottom();
+                }
+                else
+                {
+                    var msg = lLMClient.ExtractMessages(res!);
+                    var botMessage = new ChatMessage { Content = msg, IsBot = true, Index = index, Guid = messageId };
+                    messages.Add(botMessage);
+                    StateHasChanged();
+                    await Task.Delay(10);
+                    await JSRuntime.InvokeVoidAsync("hideThinking", messageId);
+                    await JSRuntime.InvokeVoidAsync("setMessageText", messageId, botMessage.Content);
+                    await ScrollToBottom();
+                }
+            }
+            else
+            {
+                var msg = lLMClient.ExtractMessages(res!);
+                var botMessage = new ChatMessage { Content = msg, IsBot = true, Index = index, Guid = messageId };
+                messages.Add(botMessage);
+                StateHasChanged();
+                await Task.Delay(10);
+                await JSRuntime.InvokeVoidAsync("hideThinking", messageId);
+                await JSRuntime.InvokeVoidAsync("setMessageText", messageId, botMessage.Content);
+                await ScrollToBottom();
+            }
+            await ChatService.SaveChatHistory(_person.ID, messages, ChatId);
+            await JS.InvokeVoidAsync("updateChatHistory");
+        }
+    }
+}
+
+<script>
+    function addMessageText(id, text) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.innerHTML += text;
+        }
+
+        // 当添加文本时，隐藏思考动效
+        hideThinking(id);
+    }
+
+    function setMessageText(id, text) {
+        const element = document.getElementById(id);
+        if (element) {
+            element.innerHTML = text;
+        }
+
+        // 有内容时隐藏思考动效
+        if (text && text.trim() !== '') {
+            hideThinking(id);
+        }
+    }
+
+    function hideThinking(id) {
+        const thinkingElement = document.getElementById(`thinking-${id}`);
+        if (thinkingElement) {
+            thinkingElement.classList.remove('visible');
+            thinkingElement.classList.add('hidden');
+        }
+    }
+
+    function scrollToBottom(element) {
+        if (element) {
+            element.scrollTop = element.scrollHeight;
+        }
+    }
+
+    // 自动调整文本区域高度的函数
+    function autoResizeTextarea(textareaElement) {
+        if (textareaElement && textareaElement.style) {
+            // 先重置高度以获取正确的scrollHeight
+            textareaElement.style.height = 'auto';
+
+            // 计算新高度，考虑最小和最大高度限制
+            const minHeight = textareaElement.classList.contains('kawaii-textarea') ? 60 : 120;
+            const maxHeight = textareaElement.classList.contains('kawaii-textarea') ? 150 : 300;
+            const newHeight = Math.min(Math.max(minHeight, textareaElement.scrollHeight), maxHeight);
+
+            textareaElement.style.height = newHeight + 'px';
+        }
+    }
+
+    // 重置文本区域高度为默认值
+    function resetTextareaHeight(textareaElement) {
+        if (textareaElement && textareaElement.style) {
+            const defaultHeight = textareaElement.classList.contains('kawaii-textarea') ? '60px' : '120px';
+            textareaElement.style.height = defaultHeight;
+        }
+    }
+</script>

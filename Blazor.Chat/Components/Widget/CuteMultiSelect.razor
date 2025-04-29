@@ -1,0 +1,150 @@
+﻿@rendermode InteractiveServer
+@using System.Collections.Generic
+@using System.Linq
+<div class="cute-multi-select">
+    <div class="select-container" @onclick="ToggleDropdown">
+        <div class="selected-items">
+            @foreach (var item in _selectedItems)
+            {
+                <span class="selected-item">@item</span>
+            }
+        </div>
+        <span class="dropdown-arrow">▼</span>
+    </div>
+    @if (IsOpen)
+    {
+        <div class="menu">
+            @foreach (var item in Options)
+            {
+                <label class="dropdown-item">
+                    <input type="checkbox"
+                    checked="@_selectedItems.Contains(item)"
+                    @onclick="() => ToggleItem(item)"
+                    @onclick:stopPropagation="true" />
+                    <span>@item</span>
+                </label>
+            }
+        </div>
+    }
+
+</div>
+
+@code {
+    [Parameter]
+    public List<string> Options { get; set; } = new List<string> { "ordinary", "admin", "plus", "pro" };
+
+    [Parameter]
+    public string Value { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<string> ValueChanged { get; set; }
+
+    private List<string> _selectedItems = new List<string>();
+    private bool IsOpen = false;
+
+    protected override void OnParametersSet()
+    {
+        _selectedItems = Value?.Split(',', StringSplitOptions.RemoveEmptyEntries).ToList() ?? [];
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        base.OnAfterRender(firstRender);
+    }
+
+    private void ToggleDropdown()
+    {
+        IsOpen = !IsOpen;
+    }
+
+    private async Task ToggleItem(string item)
+    {
+        if (_selectedItems.Contains(item))
+        {
+            _selectedItems.Remove(item);
+        }
+        else
+        {
+            _selectedItems.Add(item);
+        }
+
+        Value = string.Join(",", _selectedItems);
+        await ValueChanged.InvokeAsync(Value);
+    }
+}
+<style>
+    .cute-multi-select {
+        font-family: Arial, sans-serif;
+        position: relative;
+    }
+
+    .select-container {
+        border: 2px solid #FFB6C1;
+        border-radius: 5px;
+        padding: 5px 10px;
+        cursor: pointer;
+        background-color: #FFF0F5;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+        .select-container:focus {
+            border-color: #FF69B4;
+            box-shadow: 0 0 0 0.2rem rgba(255, 105, 180, 0.25);
+            outline: none;
+        }
+
+    .selected-items {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .selected-item {
+        background-color: #FFB6C1;
+        border-radius: 3px;
+        padding: 2px 5px;
+        font-size: 0.8em;
+        color: #FFF;
+    }
+
+    .dropdown-arrow {
+        color: #FF69B4;
+    }
+
+
+    .menu {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: #FFF0F5;
+        border: 2px solid #FFB6C1;
+        border-top: none;
+        border-radius: 0 0 5px 5px;
+        z-index: 1000;
+        max-height: 200px; /* 限制最大高度 */
+        overflow-y: auto; /* 添加垂直滚动条 */
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1); /* 添加阴影效果 */
+    }
+
+    .dropdown-item {
+        padding: 8px 10px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+    }
+
+        .dropdown-item:hover {
+            background-color: #FFB6C1;
+            color: #FFF;
+        }
+
+    /* 确保复选框可见 */
+    input[type="checkbox"] {
+        accent-color: #FF69B4;
+        width: 16px;
+        height: 16px;
+    }
+</style>

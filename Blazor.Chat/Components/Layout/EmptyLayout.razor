@@ -1,0 +1,42 @@
+﻿@using Blazor.Chat.Utility
+@inherits LayoutComponentBase
+@inject IMiaoMiaoJiangAuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+<div class="page">
+    <Microsoft.AspNetCore.Components.Authorization.AuthorizeView Roles="admin">
+        <Authorized>
+            @Body
+        </Authorized>
+        <NotAuthorized>
+            <Blazor.Chat.Components.Pages.CatgirlLogin OnLoginResult='(result)=>StateHasChanged()'></Blazor.Chat.Components.Pages.CatgirlLogin>
+        </NotAuthorized>
+    </Microsoft.AspNetCore.Components.Authorization.AuthorizeView>
+</div>
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("PetalManager.initialize", ".petals");
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+}
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        document.addEventListener('click', musicPlay);
+        function musicPlay() {
+            document.getElementById('player').play();
+            document.removeEventListener('click', musicPlay);
+        }
+    });
+</script>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

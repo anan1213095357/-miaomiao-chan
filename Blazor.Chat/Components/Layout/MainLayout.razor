@@ -1,0 +1,64 @@
+﻿@using Blazor.Chat.Utility
+@inherits LayoutComponentBase
+@inject IMiaoMiaoJiangAuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+<div class="page">
+
+
+
+    <Microsoft.AspNetCore.Components.Authorization.AuthorizeView Roles="ordinary">
+        <Authorized>
+
+            <div class="sidebar">
+                <NavMenu />
+            </div>
+
+            <main>
+
+               <div class="top-row px-4" style="z-index:9999">
+                    <a href="/settings" class="kawaii-link">
+                        <span class="link-text">设置喵~~</span>
+                        <i class="kawaii-icon">🎀</i>
+                    </a>
+                    <a href="/code-editor" class="kawaii-link">
+                        <span class="link-text">功能喵~~</span>
+                        <i class="kawaii-icon">✨</i>
+                    </a>
+                    <a href="" @onclick='AuthProvider.LogOut' class="kawaii-link">
+                        <span class="link-text">登出喵~~</span>
+                        <i class="kawaii-icon">🌸</i>
+                    </a>
+                </div>
+
+                <article class="content px-4">
+                    @Body
+                </article>
+
+
+            </main>
+
+
+        </Authorized>
+        <NotAuthorized>
+            <Blazor.Chat.Components.Pages.CatgirlLogin OnLoginResult='(result)=>StateHasChanged()'></Blazor.Chat.Components.Pages.CatgirlLogin>
+        </NotAuthorized>
+    </Microsoft.AspNetCore.Components.Authorization.AuthorizeView>
+</div>
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await JS.InvokeVoidAsync("PetalManager.initialize", ".petals");
+        }
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+}
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

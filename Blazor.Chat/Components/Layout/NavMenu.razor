@@ -1,0 +1,340 @@
+﻿@using Blazor.Chat.Models
+@using Blazor.Chat.Services
+@using Blazor.Chat.Utility
+@using System.Security.Claims
+@using static Blazor.Chat.Components.Pages.Chat
+@inject NavigationManager NavigationManager
+@rendermode InteractiveServer
+@inject IChatService ChatService
+@inject IJSRuntime JS
+@inject IFreeSql Fsql
+@inject IMiaoMiaoJiangAuthenticationStateProvider AuthProvider
+@implements IDisposable
+
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" style=" font-weight: 700;
+    color: #ff7c9c !important;" href="">喵喵酱</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class=" flex-column">
+
+        <div class="balance-container ps-3 mt-3">
+            <div class="balance-content">
+                <div class="balance-row">
+                    <span class="balance-label">
+                        <i class="fas fa-heart heart-icon"></i>
+                        余额喵：
+                    </span>
+                    <span class="balance-amount">￥ @_person.Balance.ToString("#,##0.0000; -#,##0.0000")</span>
+                </div>
+                <button class="recharge-btn">
+                    <i class="fas fa-coins"></i>
+                    充值喵~
+                    <span class="paw-print">🐾</span>
+                </button>
+            </div>
+        </div>
+
+
+
+
+        <div class="history-container">
+            <NavLink class="history-item nav-link" @onclick='()=>NavigationManager.NavigateTo($"chat/{Guid.NewGuid()}")' style="width: 100%;display: block;margin-top: 10px;">
+                <svg t="1733122256011" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="5572" width="30" height="30"><path d="M966.08 738.12l-54.26-182.22c16.74-37.82 25.24-77.78 25.24-118.82 0-177.22-160.46-321.38-357.68-321.38s-357.68 144.16-357.68 321.38c0 2.26 0.02 4.58 0.08 6.92C137.28 486.36 80 567.54 80 660.56c0 31.38 6.42 61.94 19.12 90.88l-41.2 138.3a9.94 9.94 0 0 0 2.26 9.66 10.006 10.006 0 0 0 9.48 2.96l140.96-31.02c43.42 24.2 93.42 36.98 144.84 36.96 113.74 0 211.6-62.32 253.6-150.98 56.54-4.18 111.48-20.5 159.52-47.46l185.76 40.88c3.46 0.76 7.06-0.36 9.48-2.96a10.036 10.036 0 0 0 2.26-9.66z" fill="#23130D" p-id="5573"></path><path d="M355.46 432.8C214.6 432.8 100 534.96 100 660.56c0 29.74 6.34 58.68 18.84 86.02 1.02 2.2 1.18 4.7 0.5 7.02l-37.4 125.58 128.12-28.2c0.72-0.14 1.44-0.22 2.16-0.22 1.74 0 3.46 0.44 4.98 1.32 41.18 23.7 88.98 36.24 138.26 36.22 140.88 0 255.48-102.16 255.48-227.74 0-125.6-114.6-227.76-255.48-227.76z" fill="#EC7063" p-id="5574"></path></svg>
+                &nbsp;
+                新的对话
+            </NavLink>
+        </div>
+
+        <div class="history-container">
+            @if (chatHistory != null  && chatHistory.Count > 0 && _person != null)
+            {
+                @foreach (var history in chatHistory)
+                {
+                    <div class="history-item">
+                        <div class="history-header">
+                            <span class="history-summary" @onclick="() => NavigateToChat(history.ChatHistoryItemId!)">@history.Summary</span>
+                            <button class="delete-button" @onclick="@(e => DeleteChatHistory(e, history.ChatHistoryItemId!))">
+                                <svg class="delete-icon" viewBox="0 0 24 24" width="16" height="16">
+                                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="history-preview" @onclick="() => NavigateToChat(history.ChatHistoryItemId!)">
+                            @history.LastMessage
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="history-item">
+                    <div class="history-header">
+                        <span class="history-summary">暂无消息</span>
+                    </div>
+                </div>
+            }
+        </div>
+    </nav>
+</div>
+
+@code {
+    private List<ChatHistoryItem> chatHistory = new();
+
+    private void NavigateToChat(string chatId)
+    {
+        NavigationManager.NavigateTo($"/chat/{chatId}");
+    }
+    private PeriodicTimer? _periodicTimer;
+    private CancellationTokenSource _cts = new();
+    private Person _person = new();
+    private IEnumerable<Claim>? userClaims;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+
+            userClaims = (await AuthProvider.GetAuthenticationStateAsync()).User.Claims;
+            _person.Name = userClaims.FirstOrDefault(p => p.Type == "Name")?.Value ?? "";
+
+            _person.Account = userClaims.FirstOrDefault(p => p.Type == "Account")?.Value ?? "";
+            //_user.Roles = userClaim.FirstOrDefault(p => p.Type == "Role")?.Value + "";
+            _person.Password = userClaims.FirstOrDefault(p => p.Type == "Password")?.Value ?? "";
+
+            if (long.TryParse(userClaims.FirstOrDefault(p => p.Type == "ID")?.Value ?? "", out long ID))
+            {
+                _person.ID = ID;
+            }
+
+
+            await LoadPerson();
+
+            _periodicTimer = new PeriodicTimer(TimeSpan.FromSeconds(5));
+            _ = Task.Run(async () =>
+            {
+                while (await _periodicTimer.WaitForNextTickAsync(_cts.Token))
+                {
+                    await LoadPerson();
+                    await InvokeAsync(StateHasChanged);
+                }
+            });
+            try
+            {
+                await JS.InvokeVoidAsync("Init", DotNetObjectReference.Create(this));
+                await LoadChatHistory();
+
+            }
+            catch (Exception)
+            {
+
+            }
+
+
+
+
+
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task LoadPerson()
+    {
+
+
+
+
+        _person = await Fsql.Select<Person>().Where(p => p.ID == _person.ID).FirstAsync();
+
+        if (_person is null)
+        {
+            AuthProvider.LogOut();
+        }
+
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadChatHistory()
+    {
+        chatHistory = await ChatService.GetChatHistory(_person.ID);
+        StateHasChanged();
+    }
+
+    private async Task DeleteChatHistory(MouseEventArgs e, string chatId)
+    {
+        // e.StopPropagation(); // 阻止事件冒泡，防止触发导航
+        await ChatService.DeleteChat(_person.ID , chatId);
+        await LoadChatHistory();
+    }
+
+    [JSInvokable]
+    public async Task UpdateChatHistory()
+    {
+        await LoadChatHistory();
+    }
+
+
+    public void Dispose()
+    {
+        _periodicTimer?.Dispose();
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}
+<script>
+    function Init(dotnet) {
+        window.updateChatHistory = () => dotnet.invokeMethodAsync('UpdateChatHistory');
+    }
+</script>
+
+<style>
+    .top-row {
+        background: #fff0f5;
+        border-bottom: 2px solid #ffd1dc;
+        position: relative;
+    }
+
+        .top-row::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            z-index:99999;
+            left: 0;
+            right: 0;
+            height: 10px;
+            background: radial-gradient(circle at 50% 0, transparent 8px, #ffd1dc 8px, #ffd1dc 10px, transparent 10px);
+            background-size: 20px 20px;
+            background-repeat: repeat-x;
+        }
+
+    .navbar-brand {
+        color: #ff7c9c !important;
+        font-weight: 500;
+    }
+
+    .nav-scrollable {
+        padding-top:15px;
+        background-color: #fff0f5;
+    }
+
+    .nav-link {
+        color: #ff7c9c !important;
+        transition: all 0.3s ease;
+    }
+
+        .nav-link:hover {
+            background-color: #ffe6ea;
+            transform: translateY(-2px);
+        }
+
+    .history-container {
+        max-width: 800px;
+        padding: 5px;
+    }
+
+    .history-item {
+        user-select: none;
+        background: #fff9fb;
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+        cursor: pointer;
+        border: 1px solid #ffd1dc;
+        box-shadow: 0 2px 8px rgba(255, 182, 193, 0.2);
+        transition: all 0.3s ease;
+        position: relative;
+        background-image: radial-gradient(circle at 0 0, #ffe6ea 0, #ffe6ea 8px, transparent 8px), radial-gradient(circle at 100% 0, #ffe6ea 0, #ffe6ea 8px, transparent 8px), radial-gradient(circle at 100% 100%, #ffe6ea 0, #ffe6ea 8px, transparent 8px), radial-gradient(circle at 0 100%, #ffe6ea 0, #ffe6ea 8px, transparent 8px);
+        background-size: 16px 16px;
+        background-position: 0 0, 100% 0, 100% 100%, 0 100%;
+        background-repeat: no-repeat;
+    }
+
+        .history-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 182, 193, 0.3);
+            border-color: #ff9eb5;
+        }
+
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        padding: 4px 8px;
+        border-bottom: 1px solid #ffd1dc;
+    }
+
+    .history-summary {
+        font-weight: 500;
+        color: #ff7c9c;
+        flex-grow: 1;
+        cursor: pointer;
+    }
+
+    .history-preview {
+        color: #ff9eb5;
+        font-size: 14px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        padding: 0 8px;
+    }
+
+    .delete-button {
+        background: none;
+        border: none;
+        padding: 4px;
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+        .delete-button:hover {
+            opacity: 1;
+        }
+
+    .delete-icon {
+        fill: #ff7c9c;
+    }
+
+    .icon {
+        fill: #ff7c9c;
+        transition: all 0.3s ease;
+    }
+
+    .nav-link:hover .icon {
+        fill: #ff5c8d;
+        transform: scale(1.1);
+    }
+
+    .nav-scrollable::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .nav-scrollable::-webkit-scrollbar-track {
+        background: rgba(255, 192, 203, 0.1);
+        border-radius: 4px;
+    }
+
+    .nav-scrollable::-webkit-scrollbar-thumb {
+        background-color: rgba(255, 182, 193, 0.5);
+        border-radius: 4px;
+        transition: background-color 0.3s ease;
+    }
+
+        .nav-scrollable::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(255, 182, 193, 0.8);
+        }
+</style>

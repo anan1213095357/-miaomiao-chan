@@ -1,0 +1,310 @@
+﻿@using Blazor.Chat.Components.Layout
+@using Blazor.Chat.Models
+@using Blazor.Chat.Utility
+@using System.ComponentModel.DataAnnotations
+@inject IMiaoMiaoJiangAuthenticationStateProvider AuthProvider
+@inject IFreeSql Fsql
+@inject NavigationManager NavigationManager
+@inject ILogger<CatgirlLogin> Logger
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<div class="login-container">
+    <div>
+        <div class="login-box">
+            <div class="cat-ears">
+                <div class="ear left"></div>
+                <div class="ear right"></div>
+            </div>
+
+            @if (!isRegistering)
+            {
+                <div class="form-container">
+                    <h2>喵~ 欢迎回来!</h2>
+                    <EditForm Model="@loginModel" OnValidSubmit="HandleLogin">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="form-group">
+                            <label>账户:</label>
+                            <input type="text" @bind="loginModel.Account" class="form-control" />
+                            <ValidationMessage For="@(() => loginModel.Account)" />
+                        </div>
+
+                        <div class="form-group">
+                            <label>密码:</label>
+                            <input type="password" @bind="loginModel.Password" class="form-control" />
+                            <ValidationMessage For="@(() => loginModel.Password)" />
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-login">登录</button>
+                            <button type="button" class="btn-switch" @onclick="ToggleRegister">注册新账号</button>
+                        </div>
+                    </EditForm>
+                </div>
+            }
+            else
+            {
+                <div class="form-container">
+                    <h2>喵~ 来注册吧!</h2>
+                    <EditForm Model="@registerModel" OnValidSubmit="HandleRegister">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+
+                        <div class="form-group">
+                            <label>账户:</label>
+                            <input type="text" @bind="registerModel.Account" class="form-control" />
+                            <ValidationMessage For="@(() => registerModel.Account)" />
+                        </div>
+
+                        <div class="form-group">
+                            <label>邮箱:</label>
+                            <input type="email" @bind="registerModel.Email" class="form-control" />
+                            <ValidationMessage For="@(() => registerModel.Email)" />
+                        </div>
+
+                        <div class="form-group">
+                            <label>密码:</label>
+                            <input type="password" @bind="registerModel.Password" class="form-control" />
+                            <ValidationMessage For="@(() => registerModel.Password)" />
+                        </div>
+
+                        <div class="form-group">
+                            <label>确认密码:</label>
+                            <input type="password" @bind="registerModel.ConfirmPassword" class="form-control" />
+                            <ValidationMessage For="@(() => registerModel.ConfirmPassword)" />
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-login">注册</button>
+                            <button type="button" class="btn-switch" @onclick="ToggleRegister">返回登录</button>
+                        </div>
+                    </EditForm>
+                </div>
+            }
+
+            <div class="cat-tail"></div>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback<bool> OnLoginResult { get; set; }
+    [Parameter] public string RedirectUrl { get; set; } = "/";
+
+    private bool isRegistering = false;
+    private LoginModel loginModel = new();
+    private RegisterModel registerModel = new();
+
+
+    private async Task HandleLogin()
+    {
+        try
+        {
+            AuthProvider.LoginAsync(loginModel.Account, loginModel.Password);
+            await AuthProvider.GetAuthenticationStateAsync();
+            await OnLoginResult.InvokeAsync(true);
+            StateHasChanged();
+            //NavigationManager.NavigateTo(RedirectUrl);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Login failed for user: {Account}", loginModel.Account);
+            await OnLoginResult.InvokeAsync(false);
+        }
+    }
+
+    private async Task HandleRegister()
+    {
+        try
+        {
+            // 创建新用户
+            var newUser = new Person
+                {
+                    Account = registerModel.Account,
+                    Name = registerModel.Name,
+                    Email = registerModel.Email,
+                    Phone = registerModel.Phone,
+                    Balance = 2m,
+                    Roles = "ordinary",
+                    Password = registerModel.Password
+                };
+
+            // 保存到数据库
+            await Fsql.Insert(newUser).ExecuteAffrowsAsync();
+
+            // 注册成功后自动登录
+            AuthProvider.LoginAsync(newUser.Account, newUser.Password);
+            await AuthProvider.GetAuthenticationStateAsync();
+            StateHasChanged();
+            await OnLoginResult.InvokeAsync(true);
+            //NavigationManager.NavigateTo(RedirectUrl);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Registration failed for user: {Account}", registerModel.Account);
+            await OnLoginResult.InvokeAsync(false);
+        }
+    }
+
+    private void ToggleRegister()
+    {
+        isRegistering = !isRegistering;
+    }
+
+    public class LoginModel
+    {
+        [Required(ErrorMessage = "请输入账户")]
+        public string Account { get; set; } = "";
+
+        [Required(ErrorMessage = "请输入密码")]
+        [MinLength(6, ErrorMessage = "密码最少6位")]
+        public string Password { get; set; } = "";
+    }
+
+    public class RegisterModel
+    {
+        [Required(ErrorMessage = "请输入账户")]
+        [MinLength(3, ErrorMessage = "账户最少3位")]
+        public string Account { get; set; } = "";
+
+        public string? Name { get; set; } = "";
+
+        [Required(ErrorMessage = "请输入邮箱")]
+        [EmailAddress(ErrorMessage = "邮箱格式不正确")]
+        public string Email { get; set; } = "";
+
+        [Phone(ErrorMessage = "手机号码格式不正确")]
+        public string? Phone { get; set; }
+
+        [Required(ErrorMessage = "请输入密码")]
+        [MinLength(6, ErrorMessage = "密码最少6位")]
+        public string Password { get; set; } = "";
+
+        [Required(ErrorMessage = "请确认密码")]
+        [Compare(nameof(Password), ErrorMessage = "两次密码不一致")]
+        public string ConfirmPassword { get; set; } = "";
+    }
+}
+<style>
+    html, body {
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: transparent; /* 确保页面背景透明 */
+    }
+
+    .login-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        width: 100%;
+        height: 100%;
+        background: transparent;
+    }
+
+
+    .login-box {
+        flex: 1;
+        padding: 40px;
+        max-width: 400px;
+        box-sizing: border-box;
+    }
+
+    .model-box {
+        flex: 1;
+        position: relative;
+        background: transparent; /* 确保 model-box 背景透明 */
+    }
+
+    .iframe-container {
+        position: absolute; /* 使用绝对定位 */
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    #renderCanvas {
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        background: transparent; /* 画布背景透明 */
+        display: block;
+        border: none; /* 移除任何边框 */
+        outline: none; /* 移除获得焦点时的轮廓 */
+    }
+
+        #renderCanvas:focus {
+            outline: none; /* 确保在获得焦点时没有轮廓 */
+        }
+
+
+        .form-container h2 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+
+    .form-control {
+        width: 100%;
+        padding: 8px;
+        box-sizing: border-box;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .btn-login, .btn-switch {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .btn-login {
+        background-color: #4CAF50;
+        color: white;
+    }
+
+    .btn-switch {
+        background-color: #f1f1f1;
+        color: #333;
+    }
+
+    /* 响应式设计 */
+    @@media (max-width: 768px) {
+        .content-wrapper {
+            flex-direction: column;
+        }
+
+        .login-box, .model-box {
+            flex: none;
+            width: 100%;
+            height: 50%;
+        }
+
+        .login-box {
+            padding: 20px;
+        }
+
+        .model-box {
+            height: 300px; /* 根据需要调整高度 */
+        }
+    }
+</style>

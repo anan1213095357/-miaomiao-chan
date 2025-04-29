@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35506.116
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blazor.Chat", "Blazor.Chat\Blazor.Chat.csproj", "{6B0515D4-7668-49C6-9DD3-1496143E740E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LLM", "LLM\LLM.csproj", "{F0AEA562-0364-49BF-A541-8541745C64FD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6B0515D4-7668-49C6-9DD3-1496143E740E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6B0515D4-7668-49C6-9DD3-1496143E740E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6B0515D4-7668-49C6-9DD3-1496143E740E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6B0515D4-7668-49C6-9DD3-1496143E740E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F0AEA562-0364-49BF-A541-8541745C64FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F0AEA562-0364-49BF-A541-8541745C64FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F0AEA562-0364-49BF-A541-8541745C64FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F0AEA562-0364-49BF-A541-8541745C64FD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

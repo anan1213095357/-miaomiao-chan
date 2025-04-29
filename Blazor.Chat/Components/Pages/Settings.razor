@@ -1,0 +1,314 @@
+﻿@page "/settings"
+@using System.Text.Json
+@using Blazor.Chat.Models
+@using Blazor.Chat.Services
+@using LLM.Utilities
+@using System.Reflection
+@inject ISettingsService SettingsService
+@inject IJSRuntime JSRuntime
+@rendermode InteractiveServer
+
+<div class="settings-container">
+    <div class="settings-header">
+        <h2>✨ 设置中心 ✨</h2>
+    </div>
+
+    <div class="settings-section">
+        <div class="ai-service-tabs">
+            <button class="tab-button @(_settings.CurrentService == "Ollama" ? "active" : "")"
+            @onclick='async () =>
+{
+    _settings.CurrentService = "Ollama";
+    _settings.Model = "qwen2.5:7b";
+    await LoadAvailableModels();
+
+}'>
+                <img src="images/ollama.png" alt="Ollama Logo" style="width: 30px; height: 30px; margin-right: 8px;"> Ollama
+            </button>
+            <button class="tab-button @(_settings.CurrentService == "ChatGPT" ? "active" : "")" disabled
+            @onclick='() => {
+    _settings.CurrentService = "ChatGPT";
+    _settings.Model = "gpt-4o-mini";
+}'>
+                <img src="images/chatgpt.jpg" alt="Ollama Logo" style="width: 30px; height: 30px; margin-right: 8px;"> ChatGPT
+            </button>
+            <button class="tab-button @(_settings.CurrentService == "DouBao" ? "active" : "")"
+            @onclick='() => {
+
+_settings.CurrentService = "DouBao";
+_settings.Model = DouBao.Lite_4K;
+
+}'>
+                <img src="images/豆包图标.jpg" alt="Ollama Logo" style="width: 30px; height: 30px; margin-right: 8px;"> 豆包
+            </button>
+            <button class="tab-button @(_settings.CurrentService == "QianWen" ? "active" : "")"
+            @onclick='() => {
+_settings.CurrentService = "QianWen";
+_settings.Model = "qwen-turbo";
+}'>
+                <img src="images/qwen.jpg" alt="Ollama Logo" style="width: 30px; height: 30px; margin-right: 8px;"> 通义千问
+            </button>
+        </div>
+
+        @if (_settings.CurrentService == "Ollama")
+        {
+            <div class="service-content">
+                <div class="section-title">
+                    <h3>🌐 Ollama 服务配置</h3>
+                </div>
+
+                <div class="section-title">
+                    <h3>🤖 模型管理</h3>
+                </div>
+
+                @*                 <div class="setting-item">
+                    <div class="model-install-form">
+                        <input type="text"
+                        @bind="_newModelName"
+                        placeholder="输入模型名称 (例如: qwen2.5:7b)"
+                        class="model-input" />
+                        <button class="install-button"
+                        @onclick="InstallNewModel"
+                        disabled="@_isInstalling">
+                            @if (_isInstalling)
+                            {
+                                <span>安装中...</span>
+                            }
+                            else
+                            {
+                                <span>安装模型</span>
+                            }
+                        </button>
+                    </div>
+                </div> *@
+
+                <div class="models-grid">
+                    @foreach (var model in _availableModels)
+                    {
+                        <div class="model-card installed">
+                            <div class="model-info">
+                                <span class="model-name">@model.Name</span>
+                                <span class="model-size">@model.Size</span>
+                            </div>
+                            <div class="model-status">
+                                <div class="action-buttons">
+                                    @if (_settings.Model == model.Name)
+                                    {
+                                        <button class="action-button select-btn" disabled>
+                                            当前模型
+                                        </button>
+                                    }
+                                    else
+                                    {
+                                        <button class="action-button select-btn"
+                                        @onclick="() => SelectModel(model)">
+                                            选择
+                                        </button>
+                                        @*                                     <button class="action-button delete-btn"
+                                        @onclick="() => DeleteModel(model)">
+                                            删除
+                                        </button> *@
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else if (_settings.CurrentService == "ChatGPT")
+        {
+            <div class="service-content">
+                <div class="section-title">
+                    <h3>🌐 ChatGPT 配置</h3>
+                </div>
+
+                <div class="setting-item">
+                    <label>模型选择</label>
+                    <select class="model-select" @bind="_settings.Model">
+                        <option value="gpt-4o-mini">gpt-4o-mini</option>
+
+
+                        <option value="gpt-4o">gpt-4o</option>
+                        <Microsoft.AspNetCore.Components.Authorization.AuthorizeView Roles="plus,pro,admin">
+                            <Authorized>
+                                <option value="o1-mini">o1-mini</option>
+                                <option value="o1">o1</option>
+                            </Authorized>
+                        </Microsoft.AspNetCore.Components.Authorization.AuthorizeView>
+
+
+                    </select>
+                </div>
+
+            </div>
+        }
+        else if (_settings.CurrentService == "DouBao")
+        {
+            <div class="service-content">
+                <div class="section-title">
+                    <h3>🎯 豆包 配置</h3>
+                </div>
+                <div class="setting-item">
+                    <label>模型选择</label>
+                    <select class="model-select" @bind="_settings.Model">
+                        @foreach (var field in typeof(DouBao).GetFields(BindingFlags.Public | BindingFlags.Static))
+                        {
+                            <option value="@field.GetValue(null)">@field.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+        }
+        else if (_settings.CurrentService == "QianWen")
+        {
+            <div class="service-content">
+                <div class="section-title">
+                    <h3>🔮 通义千问 配置</h3>
+                </div>
+
+                <div class="setting-item">
+                    <label>模型选择</label>
+                    <select class="model-select" @bind="_settings.Model">
+                        <option value="qwen-max">qwen-max</option>
+                        <option value="qwen-plus">qwen-plus</option>
+                        <option value="qwen-turbo">qwen-turbo</option>
+                        <option value="qwen-long">qwen-long</option>
+                    </select>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="settings-section">
+        <div class="section-title">
+            <h3>💭 系统提示词</h3>
+        </div>
+        <div class="setting-item">
+            <textarea @bind="_settings.SystemPrompt"
+            placeholder="输入系统提示词..."
+            rows="4"></textarea>
+        </div>
+    </div>
+
+    <div class="settings-actions">
+        <button class="save-button" @onclick="SaveSettings">
+            保存设置
+        </button>
+    </div>
+</div>
+
+@code {
+    private Models.LLMSettings _settings = new();
+    private List<Models.OllamaModel> _availableModels = new();
+    private string _newModelName = "";
+    //private bool _isInstalling;
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                _settings = await SettingsService.LoadSettingsAsync();
+                await LoadAvailableModels();
+
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", $"加载设置失败: {ex.Message}");
+            }
+        }
+
+        await base.OnAfterRenderAsync(firstRender);
+    }
+
+
+
+    private async Task SelectModel(OllamaModel model)
+    {
+        _settings.Model = model.Name;
+        await SaveSettings();
+    }
+
+    private async Task InstallNewModel()
+    {
+        if (string.IsNullOrWhiteSpace(_newModelName))
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "请输入模型名称");
+            return;
+        }
+
+        try
+        {
+            //_isInstalling = true;
+            await SettingsService.InstallModel(LLMSettings.GetProxy(_settings), _newModelName);
+            await LoadAvailableModels();
+            _newModelName = "";
+            await JSRuntime.InvokeVoidAsync("alert", "模型安装成功！");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"模型安装失败: {ex.Message}");
+        }
+        finally
+        {
+            //_isInstalling = false;
+        }
+    }
+
+    private async Task DeleteModel(OllamaModel model)
+    {
+        try
+        {
+            var confirm = await JSRuntime.InvokeAsync<bool>("confirm", $"确定要删除模型 {model.Name} 吗？");
+            if (!confirm) return;
+
+            await SettingsService.DeleteModel(LLMSettings.GetProxy(_settings), model.Name);
+            await LoadAvailableModels();
+            await JSRuntime.InvokeVoidAsync("alert", "模型删除成功！");
+
+            if (_settings.Model == model.Name)
+            {
+                _settings.Model = "";
+                await SaveSettings();
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"删除模型失败: {ex.Message}");
+        }
+    }
+
+    private async Task LoadAvailableModels()
+    {
+        try
+        {
+            if (_settings.CurrentService == "Ollama")
+            {
+                _availableModels = await SettingsService.GetAvailableModels(LLMSettings.GetProxy(_settings));
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"加载模型列表失败: {ex.Message}");
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SaveSettings()
+    {
+        try
+        {
+            await SettingsService.SaveSettingsAsync(_settings);
+            await JSRuntime.InvokeVoidAsync("alert", "设置保存成功！");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"保存设置失败: {ex.Message}");
+        }
+    }
+}

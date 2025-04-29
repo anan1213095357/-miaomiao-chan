@@ -1,0 +1,683 @@
+﻿@page "/code-editor"
+@using Blazor.Chat.Models
+@using Blazor.Chat.Services
+@using Blazor.Chat.Utility
+@using LLM.Services
+@using LLM.Utilities
+@using System.Text.Json
+@using System.IO
+@rendermode InteractiveServer
+@inject IJSRuntime JS
+@inject ISettingsService SettingsService
+@inject ILogger<CodeEditor> Logger
+@inject HttpClient HttpClient
+@inject IMiaoMiaoJiangAuthenticationStateProvider AuthProvider
+@inject IFreeSql Fsql
+
+<div class="code-editor-container">
+    <div class="file-list">
+        @foreach (var file in _files)
+        {
+            <div class="file-item @(file == _selectedFile ? "selected" : "")">
+                <span @onclick="() => SelectFile(file)" class="file-name">
+                    @file
+                </span>
+                <button class="delete-button" @onclick="() => ConfirmDeleteFile(file)">
+                    &times;
+                </button>
+            </div>
+        }
+    </div>
+
+    <div class="editor-area">
+        <div class="editor-toolbar">
+            <button class="toolbar-button new-file" @onclick="ShowNewFileModal">
+                <!-- 新建按钮SVG图标 -->
+                <svg t="1735181517996" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="6618" data-spm-anchor-id="a313x.search_index.0.i12.264a3a81Sgjo8I" width="35" height="35"><path d="M622.2 64H64v832h511.8v-64H128V128h416v227h224v36l-0.1 184.4h64L832 391v-86.8L622.2 64zM608 145l127.5 146H608V145z" fill="#e8989a" p-id="6619" data-spm-anchor-id="a313x.search_index.0.i7.264a3a81Sgjo8I" class=""></path><path d="M832 960h-64V832H640v-64h128V640h64v128h128v64H832z" fill="#d4237a" p-id="6620" data-spm-anchor-id="a313x.search_index.0.i13.264a3a81Sgjo8I" class="selected"></path><path d="M192 256h64v64h-64zM192 384.8h64v64h-64zM192 512.4h64v64h-64zM192 639.9h64v64h-64z" fill="#E6C37C" p-id="6621"></path><path d="M320.5 384.8H704v64H320.5zM320.5 639.9h383.4v64H320.5zM320.5 511.9h383.4v64H320.5zM320.5 256h127.6v64H320.5z" fill="#eeb173" p-id="6622" data-spm-anchor-id="a313x.search_index.0.i8.264a3a81Sgjo8I" class=""></path></svg>
+                新建
+            </button>
+            <button class="toolbar-button new-file" @onclick='() =>{UpdateMsg("开始编写！"); _showDemandModal = true;}'>
+                <!-- 智能编写按钮SVG图标 -->
+                <svg t="1735181287806" class="icon" viewBox="0 0 1084 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="6328" width="35" height="35"><path d="M667.497412 1002.315294H123.783529A123.783529 123.783529 0 0 1 0 878.531765V123.783529A123.783529 123.783529 0 0 1 123.783529 0h543.713883a123.783529 123.783529 0 0 1 123.783529 123.783529v754.748236a123.783529 123.783529 0 0 1-123.783529 123.783529" fill="#e8989a" p-id="6329" data-spm-anchor-id="a313x.search_index.0.i0.264a3a81Sgjo8I" class="selected"></path><path d="M718.215529 833.505882L1018.578824 533.082353a149.775059 149.775059 0 0 0-211.817412-211.757177L506.428235 621.718588v211.787294h211.787294z" fill="#4C86C6" p-id="6330"></path><path d="M147.696941 833.445647h358.701177v-94.930823H147.696941zM147.696941 232.116706h495.887059V137.155765H147.696941zM284.852706 390.354824h232.116706V295.393882H284.852706z" fill="#FFFFFF" p-id="6331"></path><path d="M506.398118 621.688471v211.787294h211.787294l73.095529-73.065412V336.835765z" fill="#1565B2" p-id="6332"></path></svg>
+                AI编写
+            </button>
+            <button class="toolbar-button compile" @onclick="Compile">
+                <!-- 编译按钮SVG图标 -->
+                <svg t="1735181740665" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="7889" width="35" height="35"><path d="M966.72032 0.96H57.28032A49.984 49.984 0 0 0 8.00032 51.2v922.368a49.984 49.984 0 0 0 49.28 50.24h909.44a49.984 49.984 0 0 0 49.28-50.24V51.2a49.984 49.984 0 0 0-49.28-50.24z m-23.04 949.76H80.32032v-876.8h863.36v876.8z m-260.48-351.36a36.928 36.928 0 0 0 0 51.712 35.968 35.968 0 0 0 51.2 0l146.56-148.416a36.928 36.928 0 0 0 0-51.712L735.04032 303.36a35.968 35.968 0 0 0-51.2 0 36.928 36.928 0 0 0 0 51.712l94.72 96a36.928 36.928 0 0 1 0 51.712zM439.36032 696.32a36.352 36.352 0 0 0 46.08-23.104l120.96-368.704a36.16 36.16 0 1 0-68.48-23.168l-120.96 368.704a36.672 36.672 0 0 0 22.4 46.272z m-149.76-45.248a36.096 36.096 0 0 0 51.2 0 36.928 36.928 0 0 0 0-51.712L244.80032 502.656a36.928 36.928 0 0 1 0-51.712l94.72-96a36.928 36.928 0 0 0 0-51.712 35.2 35.2 0 0 0-50.56 0L143.04032 450.816a36.928 36.928 0 0 0 0 51.712z" fill="#e8989a" p-id="7890"></path></svg>
+                编译
+            </button>
+            <button class="toolbar-button save" @onclick="Save">
+                <!-- 保存按钮SVG图标 -->
+                <svg t="1735181791283" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="9889" width="35" height="35"><path d="M987.8 252.9V945c0 19.5-15.6 35.1-35.1 35.1H77.4c-19.5 0-35.1-15.6-35.1-35.1V69.7c0-19.5 15.6-35.1 35.1-35.1h692.1c83.8 85.8 132.5 134.5 218.3 218.3zM514.1 865.1H826c31.2 0 37-5.8 37-37V539.6c0-29.2-5.8-37-35.1-37H202.1c-27.3 0-33.1 7.8-33.1 33.1v290.5c0 29.2 5.8 37 37 37 101.4 1.9 204.7 1.9 308.1 1.9z m-66.3-442.6h251.5c27.3 0 31.2-3.9 31.2-33.1v-230c0-25.3-5.8-31.2-31.2-31.2H200.2c-25.3 0-31.2 5.8-31.2 31.2v232c0 25.3 3.9 31.2 31.2 31.2 81.9-0.1 165.7-0.1 247.6-0.1z" fill="#e8989a" p-id="9890" data-spm-anchor-id="a313x.search_index.0.i19.264a3a81Sgjo8I" class=""></path><path d="M675.9 387.4h-54.6c-5.8 0-11.7-5.8-11.7-11.7V174.9c0-5.8 5.8-11.7 11.7-11.7h54.6c5.8 0 11.7 5.8 11.7 11.7v200.8c0 5.9-5.9 11.7-11.7 11.7z" fill="#eeb173" p-id="9891" data-spm-anchor-id="a313x.search_index.0.i22.264a3a81Sgjo8I" class=""></path><path d="M416.6 615.5h-64.3v187.1h-48.7V615.5h-64.3v-39h177.4v39zM436.1 650.6c7.8-3.9 17.5-7.8 29.2-9.7 11.7-1.9 23.4-3.9 31.2-3.9 44.8 0 68.2 23.4 68.2 68.2v97.5h-44.8v-23.4c-11.7 17.5-27.3 27.3-48.7 27.3-15.6 0-27.3-3.9-37-13.6-9.7-7.8-13.6-21.4-13.6-35.1 0-31.2 17.5-48.7 54.6-54.6l44.8-5.8c0-19.5-9.7-27.3-29.2-27.3s-37 5.8-54.6 17.5l-0.1-37.1z m54.6 78c-17.5 1.9-25.3 9.7-25.3 23.4 0 5.8 1.9 11.7 5.8 15.6 3.9 3.9 9.7 5.8 17.5 5.8 9.7 0 17.5-3.9 23.4-9.7 5.8-5.8 9.7-15.6 9.7-25.3v-11.7l-31.1 1.9zM672 783.2v19.5h-46.8V562.9H672v103.3c11.7-19.5 29.2-29.2 52.6-29.2 19.5 0 37 7.8 48.7 21.4 11.7 13.6 17.5 33.1 17.5 58.5 0 27.3-5.8 48.7-19.5 64.3-13.6 15.6-31.2 25.3-52.6 25.3-21.4 0.1-37-7.7-46.7-23.3z m-2-50.7c0 9.7 3.9 19.5 9.7 27.3 5.8 7.8 13.6 11.7 23.4 11.7 11.7 0 21.4-3.9 27.3-13.6 5.8-9.7 9.7-21.4 9.7-39 0-13.6-3.9-25.3-9.7-33.1-5.8-7.8-13.6-11.7-25.3-11.7-9.7 0-19.5 3.9-25.3 11.7-7.8 7.8-9.7 17.5-9.7 31.2l-0.1 15.5z" fill="#d4237a" p-id="9892" data-spm-anchor-id="a313x.search_index.0.i21.264a3a81Sgjo8I" class="selected"></path></svg>
+                保存
+            </button>
+        </div>
+        <div id="editor" @ref="_editorElement"></div>
+    </div>
+
+</div>
+
+<!-- 错误模态框 -->
+@if (_showCompileModal)
+{
+    <div class="modal-backdrop" @onclick="CloseCompileModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <h2>编译提示</h2>
+            <pre class="error-message">@_compileMessage</pre>
+            <button class="close-button" @onclick="CloseCompileModal">关闭</button>
+        </div>
+    </div>
+}
+
+<!-- 需求编写模态框 -->
+@if (_showDemandModal)
+{
+    <div class="modal-backdrop" @onclick="()=>_showDemandModal = false">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <h2>需求编写( 您的代码编译成功后需要经过审核。因在服务器上运行，我们要确保安全。)</h2>
+            <textarea @bind='_demand' class="pink-textarea" placeholder="请输入文本..."></textarea>
+            <button class="close-button" disabled='@(_compileState)' @onclick='async ()=>{
+
+                await Ai();
+            }'>
+                @_infoMessage
+            </button>
+        </div>
+    </div>
+}
+
+<!-- 新建文件模态框 -->
+@if (_showNewFileModal)
+{
+    <div class="modal-backdrop" @onclick="CloseNewFileModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <h2>新建文件</h2>
+            <input @bind="_newFileName" placeholder="请输入新文件名 (.cs)" class="input-field" />
+            <div class="modal-actions">
+                <button class="confirm-button" @onclick="CreateNewFile">创建</button>
+                <button class="cancel-button" @onclick="CloseNewFileModal">取消</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- 删除确认模态框 -->
+@if (_showDeleteConfirmModal)
+{
+    <div class="modal-backdrop" @onclick="CloseDeleteConfirmModal">
+        <div class="modal-content" @onclick:stopPropagation="true">
+            <h2>确认删除</h2>
+            <p>确定要删除文件 '<strong>@_fileToDelete</strong>' 吗？</p>
+            <div class="modal-actions">
+                <button class="confirm-button" @onclick="DeleteFileConfirmed">删除</button>
+                <button class="cancel-button" @onclick="CloseDeleteConfirmModal">取消</button>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private ElementReference _editorElement;
+    private List<string> _files = new();
+    private string _selectedFile = "";
+    private string _editorContent = "";
+    private DynamicFunctionCompiler _compiler = new();
+    private bool _showCompileModal = false;
+    private bool _compileState = false;
+    private bool _showDemandModal = false;
+    private bool _showNewFileModal = false;
+    private bool _showDeleteConfirmModal = false;
+    private string _compileMessage = "";
+    private string _infoMessage = "";
+    private string _newFileName = "";
+    private string _fileToDelete = "";
+    private Models.LLMSettings _settings = default!;
+    private LLMClient _lLMClient = default!;
+    private string _demand = default!;
+    private Person _person = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _settings = await SettingsService.LoadSettingsAsync();
+        _lLMClient = new LLMBuilder()
+            .SetModel(_settings.Model)
+            .SetBaseUrl(Models.LLMSettings.GetProxy(_settings))
+            .SetLLMType(Models.LLMSettings.GetType(_settings))
+            .SetBearer(Models.LLMSettings.GetKey(_settings))
+            .SetHttpClient(HttpClient)
+            .AddSystemMessage("你是一个擅长编写C#代码的ai,你善于把代码都写在一个cs文件里面。")
+            .Build();
+
+        // 创建用户工作区目录
+        string userDirectory = Path.Combine(AppContext.BaseDirectory, "wwwroot", "csharpCode", _person.ID.ToString());
+        if (!Directory.Exists(userDirectory))
+        {
+            Directory.CreateDirectory(userDirectory);
+        }
+
+
+        await base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await InitializeMonacoEditor();
+
+                await _initializationCompleted.Task;
+
+
+
+                var userClaim = (await AuthProvider.GetAuthenticationStateAsync()).User.Claims;
+                _person.Name = userClaim.FirstOrDefault(p => p.Type == "Name")?.Value + "";
+
+                _person.Account = userClaim.FirstOrDefault(p => p.Type == "Account")?.Value + "";
+                _person.Roles = userClaim.FirstOrDefault(p => p.Type == "Role")?.Value + "";
+                _person.Password = userClaim.FirstOrDefault(p => p.Type == "Password")?.Value + "";
+
+                if (long.TryParse(userClaim.FirstOrDefault(p => p.Type == "ID")?.Value + "", out long ID))
+                {
+                    _person.ID = ID;
+                }
+
+
+                _files = GetFiles();
+
+                if (_files.Any())
+                {
+                    await SelectFile(_files.First());
+                    _editorContent = await File.ReadAllTextAsync(Path.Combine(AppContext.BaseDirectory, "wwwroot", "csharpCode", _files.First()));
+                    await JS.InvokeVoidAsync("updateEditorContent", _editorContent);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error initializing code editor");
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    private void ShowNewFileModal()
+    {
+        _newFileName = "";
+        _showNewFileModal = true;
+    }
+
+    private void CloseNewFileModal()
+    {
+        _showNewFileModal = false;
+    }
+
+    private async Task CreateNewFile()
+    {
+        if (string.IsNullOrWhiteSpace(_newFileName))
+        {
+            _infoMessage = "文件名不能为空！";
+            return;
+        }
+
+        if (!_newFileName.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
+        {
+            _newFileName += ".cs";
+        }
+
+        string userDirectory = Path.Combine(AppContext.BaseDirectory, "wwwroot", "csharpCode", _person.ID.ToString());
+        if (!Directory.Exists(userDirectory))
+        {
+            Directory.CreateDirectory(userDirectory);
+        }
+
+        string filePath = Path.Combine(userDirectory, _newFileName);
+
+        if (File.Exists(filePath))
+        {
+            _infoMessage = "文件已存在！";
+            return;
+        }
+
+        try
+        {
+            await File.WriteAllTextAsync(filePath, $@"
+using LLM.Attributes;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
+namespace {Path.GetFileNameWithoutExtension(_newFileName)}
+{{
+    public class {Path.GetFileNameWithoutExtension(_newFileName)}Class
+    {{
+        [FunctionDescription(""weather"", ""获取天气"")]
+        public string GetWeather([ParameterDescription(""城市天气，注意必须是中国城市"")] string city)
+        {{
+            return $""获取{{city}}的天气为{{new Random().Next(-20, 20)}}"";
+        }}
+    }}
+}}
+");
+            _files = GetFiles();  // 刷新文件列表
+            await SelectFile(_newFileName);  // 选择新建的文件
+            await Fsql.Insert(new Scripts
+                {
+                    CodeFilePath = filePath,
+                    PersonID = _person.ID,
+                    ScriptAuditStatus = ScriptAuditStatus.待审核
+                }).ExecuteAffrowsAsync();
+            _infoMessage = "文件创建成功！";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error creating new file");
+            _compileMessage = ex.Message;
+            _showCompileModal = true;
+        }
+        finally
+        {
+            _showNewFileModal = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ConfirmDeleteFile(string file)
+    {
+        _fileToDelete = file;
+        _showDeleteConfirmModal = true;
+    }
+
+    private void CloseDeleteConfirmModal()
+    {
+        _showDeleteConfirmModal = false;
+        _fileToDelete = "";
+    }
+
+    private async Task DeleteFileConfirmed()
+    {
+        try
+        {
+            string userDirectory = Path.Combine(AppContext.BaseDirectory, "wwwroot", "csharpCode", _person.ID.ToString());
+            string filePath = Path.Combine(userDirectory, _fileToDelete);
+            if (File.Exists(filePath))
+            {
+                File.Delete(filePath);
+                _files = GetFiles();
+                if (_selectedFile == _fileToDelete)
+                {
+                    _selectedFile = _files.FirstOrDefault() ?? "";
+                    if (!string.IsNullOrEmpty(_selectedFile))
+                    {
+                        await SelectFile(_selectedFile);
+                    }
+                    else
+                    {
+                        await JS.InvokeVoidAsync("updateEditorContent", "");
+                    }
+                }
+                _infoMessage = "文件删除成功！";
+            }
+            else
+            {
+                _infoMessage = "文件不存在！";
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Delete file error");
+            _compileMessage = ex.Message;
+            _showCompileModal = true;
+        }
+        finally
+        {
+            _showDeleteConfirmModal = false;
+            _fileToDelete = "";
+            StateHasChanged();
+        }
+    }
+
+
+    private void UpdateMsg(string msg)
+    {
+        _infoMessage = msg;
+        InvokeAsync(StateHasChanged);
+    }
+
+
+    private async Task Ai()
+    {
+        _compileState = true;
+        StateHasChanged();
+        var person = await Fsql.Select<Person>().Where(p => p.ID == _person.ID).FirstAsync();
+
+        if (person.Balance <= 0)
+        {
+            UpdateMsg("余额不足，无法进行AI操作！");
+            return;
+        }
+
+        var content = await JS.InvokeAsync<string>("getEditorContent");
+        UpdateMsg("AI开始思考中！");
+        var ret = await _lLMClient.SendMessageAsync(
+            $"请根据以下代码和需求，修改代码。注意：每个方法上方都有 `FunctionDescription` 特性，格式为：第一个参数是函数名，第二个参数是功能描述；每个方法参数有 `ParameterDescription` 特性，描述参数用途，且所有参数和返回值都是 `string` 类型。请只提供修改后的代码，不需要额外说明。代码：{content}。需求：{_demand}",
+            false, false
+        );
+        await Fsql.Update<Person>().Where(p => p.ID == _person.ID).Set(p => p.Balance - ret.Value.Item2).ExecuteAffrowsAsync();
+        var res = ret.Value.Item1;
+        if (res != null)
+        {
+            var msg = _lLMClient.ExtractMessages(res);
+            var code = msg.Replace("```csharp", "").Replace("```", "");
+            await JS.InvokeAsync<string>("updateEditorContent", code);
+
+            List<string>? errs = [""];
+            while (errs.Count > 0)
+            {
+                try
+                {
+                    UpdateMsg("正在编译代码！");
+                    (errs, var ass) = _compiler.CompileFunction(code);
+                    if (errs.Count <= 0)
+                    {
+                        UpdateMsg("编译成功！");
+                        _showDemandModal = false;
+                    }
+                    else
+                    {
+                        _compileMessage = string.Join(Environment.NewLine, errs);
+                        UpdateMsg("整在解决报错问题。");
+                        var ret1 = await _lLMClient.SendMessageAsync($"请根据报错信息修改我的代码然后提供修改后的代码，不需要额外说明。我的代码：{code}。报错信息：{_compileMessage}", false, false);
+                        var msg1 = _lLMClient.ExtractMessages(ret1.Value.Item1);
+                        code = msg1.Replace("```csharp", "").Replace("```", "");
+                        await Fsql.Update<Person>().Where(p => p.ID == _person.ID).Set(p => p.Balance - ret1.Value.Item2).ExecuteAffrowsAsync();
+                        //_showErrorModal = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Compilation error");
+                    _compileMessage = ex.Message;
+                    //_showErrorModal = true;
+                }
+                finally
+                {
+                    StateHasChanged();
+                }
+
+            }
+
+
+            UpdateMsg("AI 编写完成！");
+        }
+        _compileState = false;
+        StateHasChanged();
+    }
+
+    private List<string> GetFiles()
+    {
+        string userDirectory = Path.Combine(AppContext.BaseDirectory, "wwwroot", "csharpCode", _person.ID.ToString());
+        if (!Directory.Exists(userDirectory))
+        {
+            Directory.CreateDirectory(userDirectory);
+        }
+        return Directory.GetFiles(userDirectory)
+            .Select(Path.GetFileName)
+            .Where(f => f?.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ?? false)
+            .ToList()!;
+    }
+
+    private void CloseCompileModal()
+    {
+        _showCompileModal = false;
+        StateHasChanged();
+    }
+
+    private void CloseInfoModal()
+    {
+        _infoMessage = "";
+        StateHasChanged();
+    }
+
+    TaskCompletionSource _initializationCompleted = new();
+
+    [JSInvokable]
+    public void InitializationCompleted()
+    {
+        _initializationCompleted.SetResult();
+    }
+
+    private async Task InitializeMonacoEditor()
+    {
+        await JS.InvokeVoidAsync("initMonacoEditor", DotNetObjectReference.Create(this), _editorElement, _editorContent);
+    }
+
+    private async Task SelectFile(string file)
+    {
+        _selectedFile = file;
+        string userDirectory = Path.Combine(AppContext.BaseDirectory, "wwwroot", "csharpCode", _person.ID.ToString());
+        string filePath = Path.Combine(userDirectory, file);
+        if (!File.Exists(filePath))
+        {
+            await File.WriteAllTextAsync(filePath, "");  // 创建空文件
+        }
+        _editorContent = await File.ReadAllTextAsync(filePath);
+
+        try
+        {
+            await JS.InvokeVoidAsync("updateEditorContent", _editorContent);
+        }
+        catch (Exception)
+        {
+        }
+        StateHasChanged();
+    }
+
+    private async Task Compile()
+    {
+        try
+        {
+            var content = await JS.InvokeAsync<string>("getEditorContent");
+            var (errs, ass) = _compiler.CompileFunction(content);
+            if (errs.Count <= 0)
+            {
+                _compileMessage = "编译成功！";
+            }
+            else
+            {
+                _compileMessage = string.Join(Environment.NewLine, errs);
+
+            }
+            _showCompileModal = true;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Compilation error");
+            _compileMessage = ex.Message;
+            _showCompileModal = true;
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            var content = await JS.InvokeAsync<string>("getEditorContent");
+            string userDirectory = Path.Combine(AppContext.BaseDirectory, "wwwroot", "csharpCode", _person.ID.ToString());
+            string filePath = Path.Combine(userDirectory, _selectedFile);
+            await File.WriteAllTextAsync(filePath, content);
+            _infoMessage = "文件保存成功！";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Save error");
+            _compileMessage = ex.Message;
+            _showCompileModal = true;
+        }
+        finally
+        {
+            StateHasChanged();
+        }
+    }
+}
+
+<style>
+    /* 添加或调整样式以美化模态框 */
+    .modal-backdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .modal-content {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        width: 400px;
+        max-width: 90%;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+        .modal-content h2 {
+            margin-top: 0;
+        }
+
+    .close-button,
+    .confirm-button,
+    .cancel-button {
+        margin-top: 20px;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    .close-button {
+        background-color: #d4237a;
+        color: #fff;
+    }
+
+    .confirm-button {
+        background-color: #4CAF50;
+        color: white;
+        margin-right: 10px;
+    }
+
+    .cancel-button {
+        background-color: #f44336;
+        color: white;
+    }
+
+    .input-field {
+        width: 100%;
+        padding: 8px;
+        margin-top: 10px;
+        box-sizing: border-box;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .error-message {
+        color: red;
+        white-space: pre-wrap;
+    }
+
+    /* 其他现有样式保持不变 */
+</style>
+
+<script>
+    var editor;
+    function initMonacoEditor(dotnet, element, content) {
+        require(['vs/editor/editor.main'], function () {
+            editor = monaco.editor.create(element, {
+                value: content,
+                language: 'csharp',
+                theme: 'vs-dark',
+                automaticLayout: true
+            });
+
+            monaco.editor.defineTheme('pinkPurpleTheme', {
+                base: 'vs-dark',
+                inherit: true,
+                rules: [
+                    // 注释 - 柔和的橙粉色
+                    { token: 'comment', foreground: 'E9967A' },
+                    // 关键字 - 深紫粉色
+                    { token: 'keyword', foreground: 'FF1493' },
+                    // 字符串 - 淡紫红色
+                    { token: 'string', foreground: 'FF69B4' },
+                    // 数字 - 鲜艳的粉紫色
+                    { token: 'number', foreground: 'DA70D6' },
+                    // 标识符 - 清晰的粉色
+                    { token: 'identifier', foreground: 'FF80AB' },
+                    // 函数名 - 深粉紫色
+                    { token: 'function', foreground: 'C71585' },
+                    // 运算符 - 深玫瑰红
+                    { token: 'operator', foreground: 'DB7093' },
+                    // 类名 - 亮紫色
+                    { token: 'class-name', foreground: '9370DB' },
+                    // 接口名称 - 淡紫色
+                    { token: 'interface-name', foreground: 'B48EAD' },
+                    // 类型 - 深紫色
+                    { token: 'type', foreground: '8A2BE2' },
+                    // 修饰符（如 public、private）- 粉紫色
+                    { token: 'modifier', foreground: 'FF00FF' },
+                    // 属性访问 - 亮粉色
+                    { token: 'property', foreground: 'FF69B4' },
+                    // 方法调用 - 深玫瑰红
+                    { token: 'method', foreground: 'C71585' }
+                ],
+                colors: {
+                    // 编辑器背景 - 更深的粉色背景，提高对比度
+                    'editor.background': '#FAE6F0',
+                    // 主要文本颜色 - 深紫红色
+                    'editor.foreground': '#C71585',
+                    // 当前行高亮 - 淡紫粉色
+                    'editor.lineHighlightBackground': '#F8BBD0',
+                    // 光标颜色 - 鲜艳的粉紫色
+                    'editorCursor.foreground': '#FF1493',
+                    // 选中背景 - 半透明的粉紫色
+                    'editor.selectionBackground': '#FF69B450',
+                    // 行号颜色 - 柔和的粉紫色
+                    'editorLineNumber.foreground': '#DB7093',
+                    // 匹配括号高亮
+                    'editorBracketMatch.background': '#FF69B430',
+                    'editorBracketMatch.border': '#FF1493'
+                }
+            });
+            monaco.editor.setTheme('pinkPurpleTheme');
+            dotnet.invokeMethodAsync('InitializationCompleted')
+        });
+    };
+
+    function getEditorContent() {
+        return editor.getValue();
+    };
+
+    function updateEditorContent(content) {
+        console.log("window.updateEditorContent ");
+        if (editor) {
+            editor.setValue(content);
+        }
+    };
+</script>

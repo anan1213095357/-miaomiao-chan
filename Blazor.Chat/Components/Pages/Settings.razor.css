@@ -1,0 +1,301 @@
+﻿
+.settings-container {
+    max-width: 800px;
+    margin: 20px auto;
+    padding: 20px;
+    background: #fff9fb;
+    border-radius: 20px;
+    box-shadow: 0 0 20px rgba(255, 182, 193, 0.2);
+    border: 2px solid #ffd1dc;
+    position: relative;
+    background-image: radial-gradient(circle at 0 0, #ffe6ea 0, #ffe6ea 10px, transparent 10px), radial-gradient(circle at 100% 0, #ffe6ea 0, #ffe6ea 10px, transparent 10px), radial-gradient(circle at 100% 100%, #ffe6ea 0, #ffe6ea 10px, transparent 10px), radial-gradient(circle at 0 100%, #ffe6ea 0, #ffe6ea 10px, transparent 10px);
+    background-size: 20px 20px;
+    background-position: 0 0, 100% 0, 100% 100%, 0 100%;
+    background-repeat: no-repeat;
+}
+
+.settings-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #ffd1dc;
+    position: relative;
+}
+
+    .settings-header h2 {
+        color: #ff7c9c;
+        font-size: 24px;
+        margin: 0;
+    }
+
+    .settings-header::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 10px;
+        right: 10px;
+        height: 10px;
+        background: radial-gradient(circle at 50% 0, transparent 8px, #ffd1dc 8px, #ffd1dc 10px, transparent 10px);
+        background-size: 20px 20px;
+        background-repeat: repeat-x;
+    }
+
+.settings-section {
+    background: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #ffd1dc;
+    box-shadow: 0 2px 8px rgba(255, 182, 193, 0.1);
+}
+
+.section-title {
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ffe6ea;
+}
+
+    .section-title h3 {
+        color: #ff7c9c;
+        margin: 0;
+        font-size: 18px;
+    }
+
+.setting-item {
+    margin-bottom: 15px;
+}
+
+    .setting-item label {
+        display: block;
+        margin-bottom: 8px;
+        color: #ff7c9c;
+        font-weight: 500;
+    }
+
+    .setting-item input,
+    .setting-item textarea,
+    .setting-item select {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #ffd1dc;
+        border-radius: 10px;
+        background: #fff9fb;
+        transition: all 0.3s ease;
+    }
+
+        .setting-item input:focus,
+        .setting-item textarea:focus,
+        .setting-item select:focus {
+            outline: none;
+            border-color: #ff9eb5;
+            box-shadow: 0 0 0 3px rgba(255, 182, 193, 0.2);
+        }
+
+.ai-service-tabs {
+    display: flex;
+    flex-wrap: wrap; /* 允许换行 */
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #fff9fb;
+    border-radius: 15px;
+    border: 1px solid #ffd1dc;
+}
+
+    /* 子项样式 */
+    .ai-service-tabs .tab-item {
+        flex: 1 1 auto; /* 允许子项根据内容调整大小 */
+    }
+
+/* 手机端样式 */
+@media (max-width: 768px) {
+    .ai-service-tabs {
+        /* 保持横向排列，但通过子项宽度控制为两列 */
+    }
+
+        .ai-service-tabs .tab-item {
+            flex: 1 1 calc(50% - 10px); /* 每个子项占50%宽度，减去间隙 */
+            box-sizing: border-box; /* 确保内边距和边框包含在宽度内 */
+        }
+}
+
+
+.tab-button {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
+    background: #fff;
+    color: #ff7c9c;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid #ffd1dc;
+}
+
+    .tab-button:hover {
+        background: #ffe6ea;
+        transform: translateY(-1px);
+    }
+
+    .tab-button.active {
+        background: #ff9eb5;
+        color: white;
+        box-shadow: 0 2px 6px rgba(255, 182, 193, 0.3);
+    }
+
+.service-content {
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    border: 1px solid #ffd1dc;
+}
+
+.models-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.model-card {
+    background: #fff9fb;
+    border: 1px solid #ffd1dc;
+    border-radius: 12px;
+    padding: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+    .model-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(255, 182, 193, 0.2);
+    }
+
+    .model-card.installed {
+        background: #ffe6ea;
+    }
+
+.model-info {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.model-name {
+    font-weight: 500;
+    color: #ff7c9c;
+}
+
+.model-size {
+    font-size: 12px;
+    color: #ff9eb5;
+}
+
+.model-status {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+}
+
+.model-install-form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.model-input {
+    flex: 1;
+    padding: 12px;
+    border: 2px solid #ffd1dc;
+    border-radius: 10px;
+    background: #fff9fb;
+    transition: all 0.3s ease;
+}
+
+    .model-input:focus {
+        outline: none;
+        border-color: #ff9eb5;
+        box-shadow: 0 0 0 3px rgba(255, 182, 193, 0.2);
+    }
+
+.install-button {
+    background: #ff9eb5;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(255, 182, 193, 0.2);
+    min-width: 120px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.action-button {
+    border: none;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.select-btn {
+    background: #ff9eb5;
+    color: white;
+}
+
+.delete-btn {
+    background: #ffcdd5;
+    color: #ff4f6f;
+}
+
+.install-btn {
+    background: #ffd1dc;
+    color: #ff7c9c;
+}
+
+.action-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(255, 182, 193, 0.2);
+}
+
+.action-button:active {
+    transform: translateY(1px);
+}
+
+.settings-actions {
+    text-align: center;
+    margin-top: 30px;
+}
+
+.save-button {
+    background: #ff9eb5;
+    color: white;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 6px rgba(255, 182, 193, 0.2);
+}
+
+    .save-button:hover {
+        background: #ff7c9c;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(255, 182, 193, 0.3);
+    }
+
+    .save-button:active {
+        transform: translateY(1px);
+    }
+

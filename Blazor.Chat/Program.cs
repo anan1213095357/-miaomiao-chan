@@ -43,7 +43,7 @@ namespace Blazor.Chat
             builder.Services.AddResponseCompression(options =>
             {
                 options.EnableForHttps = true;
-                options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] { "text/html" });
+                options.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(["text/html"]);
                 options.Providers.Add<BrotliCompressionProvider>();
                 options.Providers.Add<GzipCompressionProvider>();
             });

@@ -36,9 +36,9 @@ namespace Blazor.Chat.Models
             return settings.CurrentService switch
             {
                 "Ollama" => "",
-                "ChatGPT" => "",
-                "DouBao" => "",
-                "QianWen" => "",
+                "ChatGPT" => "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",
+                "DouBao" => "5f087934-8711-47ca-85bb-71e137db768a",
+                "QianWen" => "sk-b5035b22b1d24f8ab4018cf8dfa0314e",
                 _ => "",
             };
         }
